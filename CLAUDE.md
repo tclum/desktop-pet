@@ -143,13 +143,14 @@ Update this as phases complete.
 
 - [x] Phase A: Skeleton (Tauri setup, tray icon, SQLite, CI/CD)
   - *Follow-up:* Replace placeholder `.icns` with real icon once Runway-generated starter art exists. Use `npx tauri icon path/to/source.png` with a 1024×1024 source.
-- [ ] Phase B: A pet exists (rendering, basic interactions, state persistence)
+- [x] Phase B: A pet exists (rendering, basic interactions, state persistence)
+  - *Notification permission flow is implemented but not verified end-to-end in dev — macOS restricts notification permissions for unsigned dev builds. Will verify in Phase C (when first real notification fires) or Phase H (with signed build).*
 - [ ] Phase C: The pet lives (survival decay, bond, vacation detection, scheduling)
 - [ ] Phase D: Productivity exists (todo list, focus timer, growth resources) — *needs point economy designed first*
 - [ ] Phase E: Personality emerges (lean scoring, hatchling, first evolution ritual)
 - [ ] Phase F: Stages 1 and 2 polished (both personalities, both stages) — *needs "wants" system designed first*
 - [ ] Phase G: Polish, onboarding, demo flow — *needs onboarding designed first; reminder about artist friends*
-- [ ] Phase H: Pre-launch (beta, code signing, distribution) — *final reminder about artist friends*
+- [ ] Phase H: Pre-launch (beta, code signing, distribution) — *final reminder about artist friends; verify notification permission flow with signed build*
 
 ---
 
