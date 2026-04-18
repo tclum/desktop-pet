@@ -20,6 +20,22 @@ Every design decision in this document traces back to that. The forgiveness, the
 
 I'm building this because someone should, and because I have the lived knowledge of why it has to exist exactly like this. If it helps even a few people feel a little more held in their day, it will have been worth it. If it helps more than that, even better. But the product is the point, not the growth of it.
 
+### In memory of Meowzers
+
+*Some of what this product is exists because of a cat named Meowzers.*
+
+*When I was 19 and my parents had rejected me, Meowzers came into my life. He was my little brother. He stayed with me through the years when I had nothing else steady — the moves, the dozens of jobs, the identity confusion, the version of me that wasn't sure I'd make it.*
+
+*Eight years ago, I had to move, and I was living paycheck to paycheck, and I couldn't bring him to the next place. I left him with friends at the old place. Between the stress and the fleas, he died. He didn't have me when it mattered most, and I haven't stopped carrying that.*
+
+*Every non-negotiable in this document is shaped by him. A pet that can't die from circumstance. A pet that follows you between places so you never have to leave it behind. A pet that doesn't require financial stability to stay alive. A pet that forgives you for being gone. A pet that loves you not because you're a good owner by anyone's standard, but because you showed up.*
+
+*I'm making what would have helped. For the other people who've lost pets to instability, poverty, rejection, or the thousand other things that take love away from people who can't afford to protect it. You did what you could. Your love was real. This is for you.*
+
+*Meowzers, I love you. I'm sorry. This is for you too.*
+
+---
+
 *(More stories will be added here as they come. This section is not finished — it's just enough for now.)*
 
 ---
@@ -77,7 +93,7 @@ These design areas are still open and need decisions before or during build. Eac
 
 1. **The first 5 minutes** — Onboarding, the starter form, and the moment that makes someone keep the app installed. This is the highest-leverage UX in the entire product. If users don't feel a spark of connection in the first session, nothing else matters. Needs to be designed before Phase G of build.
 
-2. **The point/resource economy on the productivity track** — What completed work actually does, how it converts to growth, what the unit of "productive activity" is, and how to balance generosity (so casual users grow) against meaning (so growth feels earned). Needs to be designed before Phase D of build.
+2. ~~**The point/resource economy on the productivity track**~~ — ✅ **RESOLVED.** See "The Point / Resource Economy" section below.
 
 3. **The "wants" system** — How the pet's moods and preferences surface to the user. How does a user know what their pet is in the mood for today, without it becoming a guessing game or a chore? This is where attentive users get rewarded with deeper bond. Needs to be designed before Phase F of build.
 
@@ -340,6 +356,98 @@ A meaningful percentage of users will deny notification permissions. Need fallba
 - Use OS-level scheduling for long-term events
 - Goal: app is "always there" to user but doing nothing 99% of the time
 
+## The Point / Resource Economy
+
+How productivity turns into pet growth. This is one of the four foundational open questions, now resolved for v1.
+
+### Core Principles
+
+1. **Productivity feeds growth, not survival.** The pet never starves from absence of productivity; it simply doesn't grow. This is a non-negotiable.
+2. **The economy rewards real effort, not optimization.** Gaming the system cheats the user out of earned satisfaction. Light anti-cheat is sufficient.
+3. **Growth is visible organically, not numerically.** No XP bars, no counters. The pet's subtle visual changes tell the story. The user is raising a pet, not playing a game.
+
+### The Inputs (v1 sources)
+
+With v1 scope restricted to the built-in to-do list and focus timer, there are two productivity signals:
+
+- **Completed tasks** — discrete events, flat value regardless of perceived difficulty
+- **Completed focus sessions** — continuous time, rewarded in 15-minute increments
+
+Signals tracked but not rewarded:
+- **Task creation** (behavioral signal only — the act of planning matters for personality lean, but doesn't earn growth)
+- **Incomplete focus session attempts** (tracked as signal; trying is human and shouldn't be rewarded materially but also shouldn't be hidden)
+
+### The Conversion
+
+**Tasks:** 1 point each. Flat.
+
+Deliberately uniform — no user-assigned difficulty weighting. This prevents the "let me mark this hard to earn more" optimization vector and encodes the philosophy that showing up matters more than performance metrics. A user who completes five small tasks is as productive as one who completes one large one, in the pet's eyes.
+
+**Focus sessions:** 1 point per 15 minutes completed, capped at 8 points per single session (2 hours).
+
+The cap is deliberate — it signals that endless grinding isn't the goal. Sessions shorter than 15 minutes don't earn points (but are tracked as signals) — this discourages the "start and instantly complete" exploit without punishing users whose pomodoro is legitimately brief.
+
+### Tasks vs. Focus Feed Personality Lean Differently
+
+The type of productivity also shapes the pet's personality direction:
+
+- **Focus sessions → depth → powerful lean** (sustained concentrated effort)
+- **Varied task completion → breadth → eccentric lean** (multifaceted daily activity)
+- **Gentle consistent presence + care → warmth → cuddly lean** (showing up over performing)
+
+This means productivity *patterns* are the main personality signal, consolidating the personality system with the growth system. The pet you raise is shaped not just by *how much* you do, but by *what kind* of productivity you do (or don't).
+
+### The Intermediate Currency
+
+Productivity earns **growth resources** (internal name — user-facing name TBD, likely something warm like "light," "warmth," "spark," or similar; artist friends may weigh in on final naming).
+
+Properties:
+- **Earned** through productive activity only
+- **Spent** automatically by the pet as evolution milestones are reached
+- **Never lost** — no decay, no resets
+- **Legible organically** — no numeric display; the pet's appearance subtly hints at accumulated growth between evolution thresholds
+
+### The Output
+
+Growth resources gate evolution:
+
+| Transition | Approximate points | Combined with |
+|------------|-------------------|---------------|
+| Starter → Hatchling | ~20 | 5-day minimum, personality lean beginning |
+| Hatchling → 1st Evolution | ~80 | Time gate + personality lean determines form |
+| 1st → 2nd Evolution | ~200 | Time gate + deepening personality |
+
+These numbers are starting points for playtesting. Adjust based on real usage. Targets:
+- Casual users (few tasks/day, occasional focus) → 1st evolution in 3–5 weeks
+- Engaged users (regular engagement, daily focus) → 1st evolution in ~2 weeks
+- Heavy users (high activity, regular focus hours) → 1st evolution in ~1 week
+
+Anyone outside this range indicates tuning is off.
+
+### Safety Rails
+
+Explicit design choices to prevent failure modes:
+
+- **No daily minimums.** Pet doesn't grow on zero-activity days. Growth is paused, not reversed.
+- **No streaks.** Streak mechanics weaponize consistency and create streak anxiety. Rejected entirely.
+- **Points accumulate indefinitely.** A user who grinds a hundred points then takes a long break comes back to a waiting pet.
+- **No visible rate/velocity metrics.** Don't show "you earned X this week" as a bare number. Avoid any "your average is declining" framing. These weaponize comparison against past self.
+- **Silent diminishing returns on single-day binges.** After ~20 points in one day, additional points count half. Prevents "ignore pet for weeks, binge on Sunday" from being strictly optimal. Not explained to the user — felt through the pet's behavior (satisfied, doesn't want more today). Info boards may explain mechanics later for users who want to know.
+
+### Visible Anticipation Between Evolutions
+
+As growth resources accumulate between evolution thresholds, the pet shows subtle visual anticipation of what's coming. Slight color shifts, slightly different posture, small behavioral hints. Implementation is more complex than invisible-until-evolution, but the emotional payoff is significant — users feel the pet growing with them, not just snapping to a new form periodically.
+
+### Anti-Cheat Posture
+
+Minimal, structural rather than adversarial:
+
+- Tasks must exist for at least 30 seconds before completion counts (prevents "create and instant-complete" exploits)
+- Focus sessions must run to completion — closing the timer forfeits points
+- Points tied to completed events, not just logged events
+
+No CAPTCHAs, no "prove you were focused," no guilt mechanics. Users who want to cheat will find a way; chasing them makes the product worse for honest users.
+
 ---
 
 ## Build Order Recommendations
@@ -569,7 +677,47 @@ A physical hub device that enables group pet experiences. Multiple friends plug 
 
 **Suggested sequencing:** This is a v8+ direction, pursued only after the desktop app, drive portability, multi-drive co-presence, and social evolution features have shipped and proven users love their pets enough to want shared experiences. Not a near-term commitment; a long-horizon possibility.
 
-### How These Features Reinforce Each Other
+### Developer Integrations and Ecosystem
+
+A natural expansion of the productivity track: let developer tools feed the pet's growth the way the built-in to-do list and focus timer do in v1.
+
+**Why this fits:**
+
+Developers are a natural audience for this product. The design philosophy — conditional value, performance pressure, tools that punish being human — resonates strongly with people who've worked in software. Developers are also technically fluent enough to install integrations and vocal enough to spread word-of-mouth if they love it.
+
+**Possible integration sources:**
+
+- **VS Code extension** — reports coding time. Easy first integration. Time-based signal similar to a focus session.
+- **JetBrains plugin** — similar to VS Code, for the other major IDE audience
+- **Git integration** — commits count like task completions. Watches a local git directory.
+- **Claude Code integration** — parses local session logs. Reports completed coding sessions with Claude.
+- **GitHub integration** — PRs merged, issues closed. Via OAuth or local CLI.
+- **LLM API usage** — for users who use Claude/GPT APIs directly, their usage logs become signals. *Careful about what signal is actually rewarded — raw tokens measure volume, not productive use.*
+
+**Principles for these integrations:**
+
+- Local-first, privacy-preserving. No activity data leaves the user's machine.
+- Time-based signals over count-based signals wherever possible. Reward focused productive sessions, not raw activity volume.
+- Each integration is small and optional. Users opt in to what fits their workflow.
+- The pet doesn't care about the source of growth — any integration feeds the same growth resource pool, just from different signals.
+
+**Cautions:**
+
+- Raw token usage is a weak productivity signal. A user generating a hundred thousand tokens of junk isn't being productive; a user generating five thousand tokens solving a hard bug is. Token counts alone reward volume over meaning.
+- Developers are the most cynical audience. Anything that smells like gamification or surveillance gets eye-rolled instantly. Framing matters: the pet doesn't care how many commits you made; the pet is glad you were working.
+- Don't build a separate "developer edition" of the app. One app, with optional developer integrations for users who want them.
+
+**Sequencing:**
+
+- **v3.x:** First developer integration (likely VS Code extension, reports coding time)
+- **v4.x:** Git integration (commits count)
+- **v5.x+:** Broader ecosystem — Claude Code, JetBrains, GitHub, others as demand shows
+
+**Strategic note:**
+
+The developer audience might eventually become a primary user base even though the core product is positioned universally. That's fine — the design philosophy works for everyone, and developers are just particularly well-suited to appreciate and spread it. If developer traction is real, positioning-wise, the pet can be "for people who make things" without narrowing the actual audience.
+
+
 
 These additions aren't separate — they're facets of the same direction:
 
