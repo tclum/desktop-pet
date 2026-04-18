@@ -798,7 +798,43 @@ The non-negotiables that everything else serves:
 8. **Restraint over noise.** Notifications, animations, prompts — all err toward less.
 9. **The pet should feel real.** Behavioral specificity, accumulated history, and felt presence over stats and numbers.
 10. **Designed for being put down, not just picked up.** A user who's away for weeks because life is good and full should be welcomed back without guilt.
+11. **Pets have real character, including inconvenient character.** See "Pets With Real Character" below.
 
 ---
 
-*Last updated: April 17, 2026*
+## Pets With Real Character
+
+Most virtual pets fail at being *alive*. They're sanitized good-boy/good-girl companions who only do sweet things. Real pets — the ones you fall in love with and tell stories about decades later — are **weirder than that**. They have opinions, quirks, and inconvenient preferences. They knock things off tables. They have strong feelings about specific things the owner doesn't fully understand. They're sometimes jerks to you and you love them anyway.
+
+The pets in this app should embody this. Not as a feature — as a principle that shapes every other design decision about pet behavior.
+
+### What this means concretely
+
+Across all three personalities, and at every evolution stage, each pet should:
+
+- **Have specific likes and dislikes that aren't fully explained.** The pet might hate being petted on certain days, or love when you do something random that the user didn't intend as care. This isn't bugs; it's character.
+- **Be sometimes unhelpful or inconvenient.** Sit on the thing you're trying to use. React to attention the user didn't intend to give. Do something weird instead of what you expected.
+- **Have a *favorite* and a *nemesis*.** A specific environmental element, time of day, or interaction type that they particularly love or hate. Consistent across the pet's lifetime. Part of their identity.
+- **Be capable of disapproval.** If something unusual happens in the user's patterns, the pet might sulk, ignore, or act out. Not punitively — just *honestly*, the way a cat might when you bring a stranger home.
+- **Show loyalty asymmetrically.** The pet chose *you*. Their affection is specific, not generic. They might be shy or cold toward other situations/users/contexts (when multi-drive exists) while being entirely yours with you.
+- **Have a *bit*.** A specific repeated behavior the user comes to expect and love. Meowzers pooped in a strategic perimeter when strangers came over. That level of specificity. Each pet, shaped by personality and history, has some version of *their thing*.
+
+### Why this matters
+
+**Characterful pets are the ones people love.** The sanitized-companion school of design produces products that are pleasant but forgettable. The weird-specific school produces products people talk about, share stories about, feel attached to in unreasonable ways. The unreasonableness is the point.
+
+**Character also protects against substitutability.** A generic cute pet can be replaced by any other cute pet. A pet with specific quirks, who hates mornings and loves one particular accessory and gives you a specific look when you come home — that pet can't be replaced. The individuality is what makes the bond durable.
+
+**This is harder to build than generic-nice behaviors**, but it pays off in every other part of the design. The personality system, the biographical cosmetics, the long-term bond, the eventual conversation features — all get richer if the pet has actual character to carry through them.
+
+### Tone boundary
+
+Inconvenient ≠ mean. The pet can be a brat, can be stubborn, can be weird, can have opinions. The pet should never make the user feel genuinely bad. The line between "characterful quirk" and "unpleasant to be around" is real and we have to hold it. The pet's bits should be endearing on reflection, even if momentarily frustrating in the moment. Think of how a cat knocking a cup off a table is infuriating for 3 seconds and then a funny story for years. That's the zone.
+
+### Memorial note
+
+This principle exists specifically because of Meowzers. He was loving and loyal — and also a little brat. He pooped in a 5-poop perimeter when his person brought a girl home. He terrorized every vet who tried to touch him without his person holding him. He had *opinions*. That's what made him feel real instead of like a pet-shaped object. The pets in this app should be designed in his honor — characterful, specific, occasionally inconvenient, unmistakably themselves.
+
+---
+
+*Last updated: April 18, 2026*
