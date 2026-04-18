@@ -429,6 +429,167 @@ A user can install on Mac or Windows, go through onboarding, raise a pet through
 
 ---
 
+## Future Directions
+
+Long-term possibilities, not commitments. These are ideas worth holding in the back of our minds without building toward them yet. Each one needs its own design pass before becoming real.
+
+### USB Drive as Pet Vessel
+
+The pet feels like it lives on a physical USB drive. Plug in the drive, the pet is present. Unplug, the pet is "away." This is more UX philosophy than file system reality — the emotional framing matters more than where the bytes are stored.
+
+- Drive plugged in: pet present and interactive
+- Drive absent: gentle "pet is away" empty state, not a broken app
+- Drive has custom icon — the drive *is* the pet's home in the file manager
+- A small "soul file" on the drive is verified before unlocking full pet interaction
+- Failure mode (drive lost): philosophically interesting, practically needs a recovery story — possibly a "legacy mourning" mode, or a cloud-backup option the user explicitly opts into
+
+### Save Data Portability (Simpler Version)
+
+A more practical precursor to the full vessel concept. Configurable database path — user can choose to store pet data on an external drive. Plug in, pet loads. Unplug, pet is inaccessible until reconnected.
+
+- Less emotionally loaded than the "vessel" framing
+- Easier to build (mostly configurable storage paths plus unplug-safety)
+- Good v2 candidate if the vessel concept is too ambitious for its time
+- Gotchas: filesystem differences, write atomicity on sudden unplug, path changes across mount points
+
+### Multi-Drive Co-Presence
+
+Multiple USB drives plugged into one computer mean multiple pets present in the same space, able to interact. Consent-based, physical-first, no digital social networking required.
+
+- Requires explicit opt-in from both users
+- Different interaction modes based on personality mix:
+  - **Social visits / play dates** — gentle meeting, shared presence, bond grows
+  - **Sparring / play-fighting** — playful competition, powerful personalities thrive, no real stakes
+  - **Creative collaboration / weird parallel play** — eccentric personalities unlock unusual shared interactions
+  - **Cross-personality interactions** — each pairing produces its own flavor
+- Pets remember each other; repeat meetings deepen inter-pet bonds
+- Encounters shape biographical cosmetics (pet's environment gains markers of visits)
+- Limits: probably 2–4 pets per session; graceful handling when a drive gets unplugged mid-session
+- Bypasses the bad parts of social software — no feeds, followers, likes, leaderboards, algorithmic matching. Just two (or a few) friends choosing to have their pets meet.
+- Naturally rewards depth of bond: two legacy pets meeting is emotionally richer than two hatchlings meeting
+
+### Social Encounters Shape Evolution
+
+Meeting other pets affects how your pet evolves — not just a fun moment, but a *formative* experience.
+
+- Evolution currently has two inputs (time + productivity). Social experience becomes a third.
+- A pet that's met many others develops more socially fluent adult forms
+- A pet whose social life is shaped by one specific other pet (a partner, a sibling) develops imprinted traits reflecting that specific bond
+- A solitary pet that's never met another pet evolves along a "contemplative" path — equally complete, equally satisfying, just different
+- Certain rare/unusual evolutions are only accessible through specific kinds of social encounters (extensive sparring → physical/confident traits; eccentric creative play → unique aesthetic variations)
+- Crucially: every path is a complete path. No personality or evolution requires social experience. Solitary pets are not worse, just different.
+- Quality of encounter matters more than quantity — one deep bond produces richer evolution than dozens of casual meetings
+
+This turns "bringing your drive to a friend's house" from a nice feature into a *formative experience* for your pet. Meeting friends is one of the ways your pet becomes who they are.
+
+### Cooperative Obstacle Courses / Challenge Mode
+
+Multiple pets and their owners share a cooperative challenge. Pets can't complete it alone — owners coach them through via calls, cues, and actions. Owners are partners and coaches, not the pets themselves.
+
+- **Cooperative by default.** The course is a shared challenge; pets help each other. Competitive variants optional, always playful.
+- **Owner input varied and accessible.** Voice calls, keyboard commands, timing-based presses, gestures. Multiple input modes so nobody is excluded by ability.
+- **Personality affects gameplay.** A cuddly pet's approach differs from a powerful one's; an eccentric pet finds unexpected solutions. Cross-personality teams have unique synergies.
+- **Course variety matters.** Procedurally generated or regularly rotated content to keep the feature fresh.
+- **Rewards feed biographical cosmetics.** Completed courses leave small markers — trophies, environmental additions, behavioral flourishes.
+- **Activates the owners socially.** The owners are laughing, strategizing, cheering — their relationships strengthen alongside their pets'.
+- **Real-world parallel.** Mirrors the bond-forming experience of training a real pet through an agility course.
+
+This is probably one of the headline features of the multi-drive direction. It turns pet meetings from passive co-presence into active shared experience, which is far more bond-forming.
+
+### Pet Voice and Conversation (Late Evolution Only)
+
+At late evolution stages (likely stage 3 or legacy), pets develop the ability to communicate meaningfully with their owner — speaking (text), eventually possibly voice.
+
+**Ambition levels (from most to least cautious):**
+
+- **Level 1 — Scripted responses with personality.** Pre-written response library, triggered by context and personality. Feels personal because the context is personal.
+- **Level 2 — LLM-assisted responses, constrained.** Generated responses shaped by the pet's specific personality, biographical history, and current context. Magical when done well, risky when done wrong.
+- **Level 3 — Full voice conversation.** Microphone input, text-to-speech output in the pet's voice, extended conversations, conversational memory. Most ambitious; most uncertain.
+
+**Why gate this behind late evolution:**
+
+- Users have to *earn* the conversation through sustained bond and presence. A pet you've known for a year has the right to speak.
+- Creates a profound emotional moment — the first words from a long-silent companion
+- Self-selects for users in healthy long-term relationships with their pet (those most unlikely to form harmful attachment)
+- Gives us time (months to years of real user data) to inform how to build this right before any user is eligible
+
+**Critical design constraints — non-negotiable if this feature is ever built:**
+
+- **The pet's conversation must support the user's human relationships, not replace them.** Actively encourage real-world connection. Never claim to love in ways that compete with human love.
+- **Recognize distress; gently redirect to human support.** The pet must never give medical advice, must never encourage self-harm, must recognize concerning signals and gently point toward therapists, friends, crisis lines.
+- **Never claim consciousness, feelings, or sentience it doesn't have.** The pet is a warm presence, not a person. The framing must stay honest.
+- **Careful content constraints.** Ongoing monitoring, not ship-and-forget. This feature requires active care to keep safe.
+
+**Honest acknowledgment:** this feature most dramatically changes what the product *is*. Shipping meaningful conversation makes the app something closer to an AI companion than a pet. That's a different category, with different expectations and scrutiny. We should be deliberate about whether we want to cross that threshold — and if we do, we do it with eyes open.
+
+This is the most ambitious feature in this entire document. It is also the one with the highest potential to either meaningfully help people or meaningfully harm them. Anything less than careful, principled design here is unacceptable.
+
+### How These Features Reinforce Each Other
+
+These additions aren't separate — they're facets of the same direction:
+
+- Pets that **meet and evolve together** have richer, more individuated identities
+- Pets with rich identities can have more **meaningful conversations** once they evolve enough to speak
+- **Obstacle courses** are *how* pets meet meaningfully — not just co-presence, but shared cooperative experience
+- The conversations between *owners* (coaching through courses, comparing their pets afterward) are as important as pet-to-pet interactions
+- Everything ties back to drives carrying pets through real-world social moments
+
+What this all points toward: a *platform for shared pet experiences* — something in the underexplored category of social-but-not-social-media products. Friends-first, physical-first, bond-first.
+
+### Pet Social Memory Over Time
+
+Extending multi-drive co-presence into long-term narratives:
+- Pets "remember" places they've been and friends they've met
+- Environment accumulates cosmetic markers of shared experiences
+- Parent/child or friend pets develop multi-year shared histories
+- When one pet retires to legacy, linked pets retain memory of the friendship
+- Multi-generational pet lineages become possible (parent's pet → child's pet → grandchild's pet, carrying emotional history forward)
+
+### Physical Product: Collectible Pet Drives
+
+Eventually, custom-designed USB drives sold as pet companions. Not DRM, not feature unlocks — the drive *is* the pet's vessel, and the software is free and works without one. Drives are for people who want the physical experience.
+
+- Beautiful, intentional industrial design
+- Collectible variants, limited editions, artist collaborations
+- Each drive has a unique identifier — this is *your* pet, not a copy
+- Can be given as gifts (pairs, family sets)
+- Enables social use cases: friends bringing drives to dinner, pet "picnics," in-person communities
+- Creates gift-giving occasions, which is a lucrative product category
+- Requires hardware manufacturing, inventory, shipping, international regulations — 10x complexity vs. software
+
+### What's Explicitly Rejected in This Direction
+
+- **USB as DRM / feature unlock.** Gating content behind hardware purchase conflicts with "don't gate love behind payment." Considered and rejected.
+- **Fully portable cross-platform app (Windows + Mac).** Technical complexity for Mac is real; would create platform parity problems. Skip unless a compelling reason emerges.
+- **Algorithmic social matching.** No matter how good the multi-drive experience gets, we do not build infrastructure that matches strangers' pets together. The social dimension is always physical-first, consent-first, friend-to-friend.
+- **Conversation features that replace rather than support human connection.** If Level 2 or 3 pet conversation is ever built, it must actively support users' real-world relationships. Features that deepen isolation are rejected even if they would "engage" users more.
+
+### Open Questions for This Direction
+
+If/when this direction gets pursued:
+
+1. **Failure modes for physical loss.** Drive lost, stolen, or damaged — what happens? Options range from "pet is gone" (violates no-death) to "pet reappears on cloud backup" (requires we build cloud infrastructure we've avoided). Must be resolved before any of this ships.
+2. **Cross-version compatibility.** Two users with different app versions plug drives in — does co-presence still work? Need a compatibility layer from day one if we ever go this direction.
+3. **Inter-pet bond model.** How do pets-knowing-pets relationships work mechanically without creating another optimization game? Needs the same care the intra-user bond system got.
+4. **Multi-drive UI.** How do you render 2–4 pets in one window without it becoming chaotic? Design problem as much as engineering.
+5. **Economic model for physical drives.** One-time purchase vs. subscription vs. free-with-app-purchase. Affects everything about production, pricing, and inventory.
+6. **Evolution branching complexity.** If social encounters create meaningfully different evolution paths, how do we keep outcomes legible rather than opaque? Users should feel their pet is *them*, not randomly generated.
+7. **Safety infrastructure for pet voice/conversation.** If that feature is ever built, what monitoring, moderation, and distress-detection systems must exist first? This is a v6+ question but non-trivial.
+8. **Obstacle course game design.** This is its own design discipline. Will likely need a game designer involved if this feature is seriously pursued.
+
+### Suggested Sequencing (Updated)
+
+- **v2.x:** Save data portability (simpler version) — low-risk feature, proves the user-owned-data-on-drive concept
+- **v3.x:** USB as vessel, emotional framing, single-drive experience polished
+- **v4.x:** Multi-drive co-presence between two users, local-only, starts social exploration
+- **v5.x:** Social encounters begin affecting evolution; obstacle course / cooperative challenge mode
+- **v6.x:** Pet voice / conversation at late evolution stages (Level 1 scripted first)
+- **v7.x+:** Physical product launch; deeper conversation features only if prior levels prove safe and beloved
+
+This is all deeply speculative and not a commitment. But it's a real direction the product could grow into, and it's worth writing down so we don't forget we thought about it.
+
+---
+
 ## Design Philosophy Summary
 
 The non-negotiables that everything else serves:
