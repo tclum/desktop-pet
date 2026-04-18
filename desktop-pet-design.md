@@ -524,6 +524,51 @@ At late evolution stages (likely stage 3 or legacy), pets develop the ability to
 
 This is the most ambitious feature in this entire document. It is also the one with the highest potential to either meaningfully help people or meaningfully harm them. Anything less than careful, principled design here is unacceptable.
 
+### Pet Hub: Multi-USB TV-Connected Device
+
+A physical hub device that enables group pet experiences. Multiple friends plug their drives into one hub, which connects to a TV for shared display, and users interact with their pets via their phones. Combines Jackbox-style "private input, public output" pattern with the pet system.
+
+**What it enables:**
+
+- A group of friends gathers in one physical location
+- Each plugs their pet drive into the hub
+- TV shows a shared space (obstacle course, pet park, sparring arena, etc.)
+- Each person's phone connects to the hub (QR code pairing) and becomes their private controller
+- Pets interact in the shared TV space while owners coach/control from their phones
+- After the session, pets carry memories of the evening home on their drives
+
+**Technical feasibility:**
+
+- Buildable on existing hardware. Raspberry Pi 5 has multiple USB ports, HDMI output, WiFi, and Bluetooth. Many similar small-computer alternatives exist.
+- Communication is all local (phones on same WiFi as hub). No cloud server required — preserves privacy non-negotiables.
+- The pet hub runs a Linux version of the same Tauri app that powers desktop — different rendering mode and input handling, shared core pet logic.
+- Phones connect via web page (no separate app to install) or via our phone companion once it exists.
+
+**Distribution models (ordered from simplest to most ambitious):**
+
+1. **Software image for hobbyist hardware.** Users buy a Raspberry Pi, flash our pet-hub image onto it. Shipping bits, not atoms. Low barrier to ship, higher setup burden for users.
+2. **Partnership with an existing device maker.** Work with a small computer manufacturer to pre-install our image on a polished, plug-and-play device. Medium complexity.
+3. **Custom-designed pet hub hardware.** Our own industrial design, manufacturing, certifications, retail. Highest complexity, biggest brand statement. Only pursued if product has strong traction.
+
+**Why this matters culturally:**
+
+- Pet experiences become *events*, not app sessions. "Come over, let's have a pet night" becomes a real invitation.
+- The TV reframes the pet from a private app to a *shared living room experience*.
+- Phones as individual controllers preserve intimacy within communal context.
+- Drives become meaningful social objects — the ticket to shared experiences, not just a save file.
+- Cross-generational reach — kids, teens, adults, grandparents can all participate.
+- Genuine competitor-free space — nobody is building cozy multi-user pet experiences for TV.
+
+**Risks:**
+
+- Hardware distribution is expensive even at the "software image on Pi" level (support burden for non-technical users).
+- Scope explosion. Desktop app + drives + hub = three products to maintain.
+- Forward/backward compatibility becomes critical from day one.
+- The shared experiences have to be genuinely fun (real game design work), not just "mediocre but cute."
+- Indirectly compares to gaming platforms (Nintendo, Jackbox, etc.). Must feel genuinely special.
+
+**Suggested sequencing:** This is a v8+ direction, pursued only after the desktop app, drive portability, multi-drive co-presence, and social evolution features have shipped and proven users love their pets enough to want shared experiences. Not a near-term commitment; a long-horizon possibility.
+
 ### How These Features Reinforce Each Other
 
 These additions aren't separate — they're facets of the same direction:
@@ -584,7 +629,8 @@ If/when this direction gets pursued:
 - **v4.x:** Multi-drive co-presence between two users, local-only, starts social exploration
 - **v5.x:** Social encounters begin affecting evolution; obstacle course / cooperative challenge mode
 - **v6.x:** Pet voice / conversation at late evolution stages (Level 1 scripted first)
-- **v7.x+:** Physical product launch; deeper conversation features only if prior levels prove safe and beloved
+- **v7.x:** Physical product launch — collectible pet drives; deeper conversation features only if prior levels prove safe and beloved
+- **v8.x+:** Pet hub (Raspberry Pi software image first; custom hardware only if demand is clear)
 
 This is all deeply speculative and not a commitment. But it's a real direction the product could grow into, and it's worth writing down so we don't forget we thought about it.
 
