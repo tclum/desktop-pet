@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   isPermissionGranted,
   requestPermission,
 } from '@tauri-apps/plugin-notification';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import PetView from './pet/PetView';
+import ProductivityPanel from './productivity/ProductivityPanel';
 import type { PetState } from './pet/types';
 import {
   getPet,
@@ -12,10 +13,13 @@ import {
   markNotificationPermissionAsked,
 } from './lib/tauri';
 import './styles/pet.css';
+import './styles/productivity.css';
 
 export default function App() {
   const [petState, setPetState] = useState<PetState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Signals the pet to play its reaction glow when productivity points are earned.
+  const triggerPetReactionRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     getPet()
@@ -33,6 +37,14 @@ export default function App() {
     setPetState(updated);
   }, []);
 
+  const handleRegisterPetReaction = useCallback((trigger: () => void) => {
+    triggerPetReactionRef.current = trigger;
+  }, []);
+
+  const handlePointsEarned = useCallback((_points: number) => {
+    triggerPetReactionRef.current?.();
+  }, []);
+
   if (loadError) {
     return (
       <div className="pet-window pet-error">
@@ -48,7 +60,16 @@ export default function App() {
 
   return (
     <div className="pet-window">
-      <PetView petState={petState} onPetStateUpdate={handlePetStateUpdate} />
+      <div className="pet-area">
+        <PetView
+          petState={petState}
+          onPetStateUpdate={handlePetStateUpdate}
+          onRegisterReactionTrigger={handleRegisterPetReaction}
+        />
+      </div>
+      <div className="panel-area">
+        <ProductivityPanel onPointsEarned={handlePointsEarned} />
+      </div>
     </div>
   );
 }

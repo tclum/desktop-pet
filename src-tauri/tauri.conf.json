@@ -10,12 +10,13 @@
   },
   "app": {
     "withGlobalTauri": false,
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "pet",
         "title": "Desktop Pet",
         "width": 320,
-        "height": 400,
+        "height": 540,
         "decorations": false,
         "transparent": true,
         "resizable": false,

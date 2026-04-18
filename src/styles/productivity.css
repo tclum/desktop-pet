@@ -1,0 +1,340 @@
+/* ---------------------------------------------------------------------------
+   Productivity panel — tabs, task list, focus timer
+   All colours use opacity so they work on the transparent window background.
+--------------------------------------------------------------------------- */
+
+.productivity-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Tab bar */
+
+.productivity-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  flex-shrink: 0;
+}
+
+.productivity-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.40);
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.productivity-tab:hover {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.productivity-tab--active {
+  color: rgba(255, 255, 255, 0.85);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.40);
+  margin-bottom: -1px;
+}
+
+/* Tab content */
+
+.productivity-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.tab-pane--hidden {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Todo list
+--------------------------------------------------------------------------- */
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.todo-items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  padding: 4px 0;
+}
+
+/* Subtle scrollbar so it doesn't overpower the transparent window */
+.todo-items::-webkit-scrollbar {
+  width: 3px;
+}
+.todo-items::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  transition: opacity 400ms ease;
+}
+
+.todo-item--done {
+  opacity: 0.45;
+}
+
+.todo-item--fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.todo-empty {
+  padding: 20px 12px;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.todo-checkbox {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.30);
+  background: none;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 120ms ease, background 120ms ease;
+  padding: 0;
+}
+
+.todo-checkbox:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.60);
+}
+
+/* Checkmark via pseudo-element — avoids SVG import */
+.todo-item--done .todo-checkbox::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: rgba(255, 255, 255, 0.50);
+  border-radius: 2px;
+}
+
+.todo-title {
+  flex: 1;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.80);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-item--done .todo-title {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.40);
+}
+
+.todo-delete {
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.20);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.todo-delete:hover {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.todo-input-row {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.todo-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: rgba(255, 255, 255, 0.80);
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+.todo-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.todo-input:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* ---------------------------------------------------------------------------
+   Focus timer
+--------------------------------------------------------------------------- */
+
+.focus-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.focus-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.focus-time {
+  font-family: system-ui, sans-serif;
+  font-size: 38px;
+  font-weight: 200;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-progress-track {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.focus-progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 1px;
+  transition: width 800ms linear;
+}
+
+.focus-duration-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.focus-duration-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  background: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.focus-duration-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.focus-duration-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.focus-duration-label {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.50);
+  min-width: 48px;
+  text-align: center;
+}
+
+.focus-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.focus-btn {
+  padding: 7px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  background: none;
+  color: rgba(255, 255, 255, 0.70);
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.focus-btn:hover {
+  border-color: rgba(255, 255, 255, 0.40);
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.focus-btn--start {
+  border-color: rgba(255, 255, 255, 0.30);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.focus-btn--stop {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Completion state */
+
+.focus-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  cursor: pointer;
+  padding: 20px;
+}
+
+.focus-done-message {
+  font-family: system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.70);
+  letter-spacing: 0.02em;
+}

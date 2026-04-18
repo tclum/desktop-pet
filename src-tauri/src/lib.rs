@@ -50,6 +50,13 @@ pub fn run() {
             record_pet_interaction,
             is_notification_permission_needed,
             mark_notification_permission_asked,
+            get_tasks,
+            create_task,
+            complete_task,
+            delete_task,
+            start_focus_session,
+            complete_focus_session,
+            abort_focus_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -67,6 +74,10 @@ fn toggle_pet_window(app: &tauri::AppHandle) {
         let _ = window.set_focus();
     }
 }
+
+// ---------------------------------------------------------------------------
+// Pet commands
+// ---------------------------------------------------------------------------
 
 #[tauri::command]
 fn get_pet(state: tauri::State<'_, Mutex<Connection>>) -> Result<PetStateDto, String> {
@@ -120,4 +131,133 @@ fn mark_notification_permission_asked(
     let conn = state.lock().map_err(|e| e.to_string())?;
     db::set_setting(&conn, "notification_permission_asked", "true")
         .map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Task commands
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct TaskDto {
+    pub id: i64,
+    pub title: String,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
+impl From<db::TaskRow> for TaskDto {
+    fn from(row: db::TaskRow) -> Self {
+        TaskDto {
+            id: row.id,
+            title: row.title,
+            created_at: row.created_at,
+            completed_at: row.completed_at,
+        }
+    }
+}
+
+#[tauri::command]
+fn get_tasks(state: tauri::State<'_, Mutex<Connection>>) -> Result<Vec<TaskDto>, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::load_tasks(&conn, pet_id)
+        .map(|rows| rows.into_iter().map(TaskDto::from).collect())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_task(
+    state: tauri::State<'_, Mutex<Connection>>,
+    title: String,
+) -> Result<TaskDto, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    let task = db::insert_task(&conn, pet_id, &title).map_err(|e| e.to_string())?;
+    db::log_task_created_signal(&conn, pet_id).map_err(|e| e.to_string())?;
+    Ok(TaskDto::from(task))
+}
+
+#[derive(serde::Serialize)]
+pub struct CompleteTaskDto {
+    pub points_awarded: i64,
+}
+
+#[tauri::command]
+fn complete_task(
+    state: tauri::State<'_, Mutex<Connection>>,
+    task_id: i64,
+) -> Result<CompleteTaskDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::complete_task(&mut conn, task_id, pet_id)
+        .map(|r| CompleteTaskDto { points_awarded: r.points_awarded })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_task(
+    state: tauri::State<'_, Mutex<Connection>>,
+    task_id: i64,
+) -> Result<(), String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    db::soft_delete_task(&conn, task_id).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Focus session commands
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct FocusSessionDto {
+    pub id: i64,
+    pub started_at: String,
+    pub duration_minutes: i64,
+}
+
+impl From<db::FocusSessionRow> for FocusSessionDto {
+    fn from(row: db::FocusSessionRow) -> Self {
+        FocusSessionDto {
+            id: row.id,
+            started_at: row.started_at,
+            duration_minutes: row.duration_minutes,
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct CompleteFocusDto {
+    pub points_awarded: i64,
+}
+
+#[tauri::command]
+fn start_focus_session(
+    state: tauri::State<'_, Mutex<Connection>>,
+    duration_minutes: i64,
+) -> Result<FocusSessionDto, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::start_focus_session(&conn, pet_id, duration_minutes)
+        .map(FocusSessionDto::from)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn complete_focus_session(
+    state: tauri::State<'_, Mutex<Connection>>,
+    session_id: i64,
+) -> Result<CompleteFocusDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::complete_focus_session(&mut conn, session_id, pet_id)
+        .map(|r| CompleteFocusDto { points_awarded: r.points_awarded })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn abort_focus_session(
+    state: tauri::State<'_, Mutex<Connection>>,
+    session_id: i64,
+) -> Result<(), String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    db::abort_focus_session(&conn, session_id).map_err(|e| e.to_string())
 }

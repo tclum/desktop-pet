@@ -5,6 +5,8 @@ import { recordPetInteraction } from '../lib/tauri';
 interface Props {
   petState: PetState;
   onPetStateUpdate: (updated: PetState) => void;
+  // Allows the parent to externally trigger the reaction glow (e.g., on points earned).
+  onRegisterReactionTrigger: (trigger: () => void) => void;
 }
 
 const IDLE_FRAME_MS = 1000 / 6;        // 6 fps — ambient, low-energy
@@ -12,7 +14,7 @@ const BREATH_PERIOD_MS = 3000;          // one full breath every 3 seconds
 const BREATH_AMPLITUDE = 0.04;          // scale 1.0 → 1.04 → 1.0
 const REACTION_DURATION_MS = 1500;      // gentle glow for 1.5 seconds
 
-export default function PetView({ petState, onPetStateUpdate }: Props) {
+export default function PetView({ petState, onPetStateUpdate, onRegisterReactionTrigger }: Props) {
   const bodyRef = useRef<SVGCircleElement>(null);
   const glowRef = useRef<SVGCircleElement>(null);
   const rafIdRef = useRef<number | null>(null);
@@ -80,6 +82,14 @@ export default function PetView({ petState, onPetStateUpdate }: Props) {
       stopLoop();
     };
   }, [startLoop, stopLoop]);
+
+  // Register the external reaction trigger so productivity completions can
+  // fire the glow without coupling the panels together directly.
+  useEffect(() => {
+    onRegisterReactionTrigger(() => {
+      reactionStartedAtRef.current = performance.now();
+    });
+  }, [onRegisterReactionTrigger]);
 
   const handlePetClick = useCallback(() => {
     // Start reaction immediately — don't wait for the DB round-trip.
