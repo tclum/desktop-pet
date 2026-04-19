@@ -6,9 +6,10 @@ type Tab = 'tasks' | 'focus';
 
 interface Props {
   onPointsEarned: (points: number) => void;
+  onEvolution: () => void;
 }
 
-export default function ProductivityPanel({ onPointsEarned }: Props) {
+export default function ProductivityPanel({ onPointsEarned, onEvolution }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
   const handlePointsEarned = useCallback(
@@ -41,10 +42,10 @@ export default function ProductivityPanel({ onPointsEarned }: Props) {
 
       <div className="productivity-content">
         <div className={activeTab === 'tasks' ? 'tab-pane' : 'tab-pane tab-pane--hidden'} role="tabpanel">
-          <TodoList onPointsEarned={handlePointsEarned} />
+          <TodoList onPointsEarned={handlePointsEarned} onEvolution={onEvolution} />
         </div>
         <div className={activeTab === 'focus' ? 'tab-pane' : 'tab-pane tab-pane--hidden'} role="tabpanel">
-          <FocusTimer onPointsEarned={handlePointsEarned} />
+          <FocusTimer onPointsEarned={handlePointsEarned} onEvolution={onEvolution} />
         </div>
       </div>
     </div>

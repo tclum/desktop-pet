@@ -7,6 +7,7 @@ export interface Task {
 
 export interface CompleteTaskResult {
   points_awarded: number;
+  evolved: boolean;
 }
 
 export interface FocusSession {
@@ -17,6 +18,7 @@ export interface FocusSession {
 
 export interface CompleteFocusResult {
   points_awarded: number;
+  evolved: boolean;
 }
 
 export type FocusPhase = 'idle' | 'running' | 'paused' | 'done';

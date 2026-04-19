@@ -1,27 +1,67 @@
 .pet-view {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pet-svg {
+  position: relative;
   width: 200px;
   height: 200px;
-  overflow: visible;
   cursor: pointer;
 }
 
-/* transform-box: fill-box makes transform-origin: center work correctly
-   on SVG elements across browsers. */
-.pet-body {
-  transform-box: fill-box;
-  transform-origin: center;
+.pet-breath-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* transform-origin: center is the default, which is correct for breathing */
+}
+
+.pet-sprite {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  /* Prevent sub-pixel jitter on the scale transform */
+  will-change: transform, opacity;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* next sprite sits on top so its fade-in is unobstructed */
+.pet-sprite--next {
+  z-index: 1;
+}
+
+/* Reaction glow — small warm pulse centred on the pet */
+.pet-reaction-glow {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 248, 220, 0.9) 0%,
+    rgba(255, 240, 180, 0.4) 45%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* Evolution glow — full pet-area wash that expands during the transition */
+.pet-evolution-glow {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 35%,
+    rgba(255, 252, 230, 0.95) 0%,
+    rgba(255, 240, 180, 0.55) 35%,
+    rgba(220, 200, 140, 0.15) 60%,
+    transparent 80%
+  );
+  pointer-events: none;
+  /* Sits above the pet and panel but below nothing — covers the full window */
+  z-index: 100;
 }
 
 .pet-error {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-family: system-ui, sans-serif;

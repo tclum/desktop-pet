@@ -38,6 +38,10 @@ export function completeTask(taskId: number): Promise<CompleteTaskResult> {
   return invoke('complete_task', { taskId });
 }
 
+export function evolveToHatchling(): Promise<PetState> {
+  return invoke('evolve_to_hatchling');
+}
+
 export function deleteTask(taskId: number): Promise<void> {
   return invoke('delete_task', { taskId });
 }

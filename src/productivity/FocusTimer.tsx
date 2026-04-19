@@ -12,9 +12,10 @@ const COMPLETION_MESSAGES = ['Good session.', 'Nice focus.', 'Thanks for that.']
 
 interface Props {
   onPointsEarned: (points: number) => void;
+  onEvolution: () => void;
 }
 
-export default function FocusTimer({ onPointsEarned }: Props) {
+export default function FocusTimer({ onPointsEarned, onEvolution }: Props) {
   const [targetMinutes, setTargetMinutes] = useState(DEFAULT_DURATION_MINUTES);
   const [phase, setPhase] = useState<FocusPhase>('idle');
   // Remaining ms shown in the display — updated via RAF, not setInterval.
@@ -65,8 +66,9 @@ export default function FocusTimer({ onPointsEarned }: Props) {
           setCompletionMessage(msg);
           setPhase('done');
           completeFocusSession(sid)
-            .then(({ points_awarded }) => {
+            .then(({ points_awarded, evolved }) => {
               if (points_awarded > 0) onPointsEarned(points_awarded);
+              if (evolved) onEvolution();
             })
             .catch((err: unknown) => {
               console.error('Failed to complete focus session:', err);

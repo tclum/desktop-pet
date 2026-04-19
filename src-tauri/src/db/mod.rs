@@ -2,7 +2,11 @@ use rusqlite::{params, Connection};
 use std::path::Path;
 use thiserror::Error;
 
-const SCHEMA_TARGET_VERSION: i64 = 3;
+const SCHEMA_TARGET_VERSION: i64 = 4;
+
+// DEMO: starter → hatchling at 5 growth resources. Production should be 20.
+// See "The Point / Resource Economy" in desktop-pet-design.md.
+const STARTER_TO_HATCHLING_THRESHOLD: i64 = 5;
 
 #[derive(Debug, Error)]
 pub enum DbError {
@@ -82,6 +86,9 @@ fn apply_migrations(conn: &Connection) -> Result<(), DbError> {
     if current < 3 {
         migrate_2_to_3(conn)?;
     }
+    if current < 4 {
+        migrate_3_to_4(conn)?;
+    }
 
     Ok(())
 }
@@ -157,14 +164,49 @@ fn migrate_2_to_3(conn: &Connection) -> Result<(), DbError> {
                                CHECK(source IN ('task_completed','focus_completed')),
             points_awarded INTEGER NOT NULL,
             occurred_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-            -- related_id references tasks.id when source='task_completed',
-            -- focus_sessions.id when source='focus_completed'
             related_id     INTEGER NOT NULL
         );
 
         ALTER TABLE pet ADD COLUMN growth_resources INTEGER NOT NULL DEFAULT 0;
 
         UPDATE schema_version SET version = 3;
+
+        COMMIT;",
+    )?;
+    Ok(())
+}
+
+fn migrate_3_to_4(conn: &Connection) -> Result<(), DbError> {
+    // SQLite cannot alter CHECK constraints, so growth_events is recreated.
+    // related_id also becomes nullable to accommodate evolution events (which
+    // have no related task or focus session).
+    conn.execute_batch(
+        "BEGIN;
+
+        CREATE TABLE growth_events_new (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            pet_id         INTEGER NOT NULL REFERENCES pet(id),
+            source         TEXT    NOT NULL
+                               CHECK(source IN (
+                                   'task_completed',
+                                   'focus_completed',
+                                   'evolved_to_hatchling'
+                               )),
+            points_awarded INTEGER NOT NULL,
+            occurred_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+            -- NULL for evolution events; tasks.id or focus_sessions.id otherwise
+            related_id     INTEGER
+        );
+
+        INSERT INTO growth_events_new
+            (id, pet_id, source, points_awarded, occurred_at, related_id)
+        SELECT id, pet_id, source, points_awarded, occurred_at, related_id
+        FROM growth_events;
+
+        DROP TABLE growth_events;
+        ALTER TABLE growth_events_new RENAME TO growth_events;
+
+        UPDATE schema_version SET version = 4;
 
         COMMIT;",
     )?;
@@ -319,6 +361,11 @@ pub struct TaskRow {
     pub completed_at: Option<String>,
 }
 
+pub struct CompleteTaskResult {
+    pub points_awarded: i64,
+    pub evolved: bool,
+}
+
 pub fn load_tasks(conn: &Connection, pet_id: i64) -> Result<Vec<TaskRow>, DbError> {
     let mut stmt = conn.prepare(
         "SELECT id, title, created_at, completed_at
@@ -358,10 +405,6 @@ pub fn insert_task(conn: &Connection, pet_id: i64, title: &str) -> Result<TaskRo
     .map_err(DbError::Sqlite)
 }
 
-pub struct CompleteTaskResult {
-    pub points_awarded: i64,
-}
-
 pub fn complete_task(
     conn: &mut Connection,
     task_id: i64,
@@ -377,7 +420,7 @@ pub fn complete_task(
     )?;
     if affected == 0 {
         tx.commit()?;
-        return Ok(CompleteTaskResult { points_awarded: 0 });
+        return Ok(CompleteTaskResult { points_awarded: 0, evolved: false });
     }
 
     // Anti-cheat: tasks created less than 30 seconds ago earn no points.
@@ -406,8 +449,10 @@ pub fn complete_task(
         params![pet_id],
     )?;
 
+    let evolved = check_and_evolve(&tx, pet_id)?;
+
     tx.commit()?;
-    Ok(CompleteTaskResult { points_awarded: final_points })
+    Ok(CompleteTaskResult { points_awarded: final_points, evolved })
 }
 
 pub fn soft_delete_task(conn: &Connection, task_id: i64) -> Result<(), DbError> {
@@ -435,6 +480,11 @@ pub struct FocusSessionRow {
     pub id: i64,
     pub started_at: String,
     pub duration_minutes: i64,
+}
+
+pub struct CompleteFocusResult {
+    pub points_awarded: i64,
+    pub evolved: bool,
 }
 
 pub fn start_focus_session(
@@ -475,10 +525,6 @@ pub fn start_focus_session(
     .map_err(DbError::Sqlite)
 }
 
-pub struct CompleteFocusResult {
-    pub points_awarded: i64,
-}
-
 pub fn complete_focus_session(
     conn: &mut Connection,
     session_id: i64,
@@ -493,7 +539,7 @@ pub fn complete_focus_session(
     )?;
     if affected == 0 {
         tx.commit()?;
-        return Ok(CompleteFocusResult { points_awarded: 0 });
+        return Ok(CompleteFocusResult { points_awarded: 0, evolved: false });
     }
 
     let duration_minutes: i64 = tx.query_row(
@@ -520,8 +566,10 @@ pub fn complete_focus_session(
         params![pet_id, duration_minutes as f64],
     )?;
 
+    let evolved = check_and_evolve(&tx, pet_id)?;
+
     tx.commit()?;
-    Ok(CompleteFocusResult { points_awarded: final_points })
+    Ok(CompleteFocusResult { points_awarded: final_points, evolved })
 }
 
 pub fn abort_focus_session(conn: &Connection, session_id: i64) -> Result<(), DbError> {
@@ -534,8 +582,63 @@ pub fn abort_focus_session(conn: &Connection, session_id: i64) -> Result<(), DbE
 }
 
 // ---------------------------------------------------------------------------
+// Evolution
+// ---------------------------------------------------------------------------
+
+/// Evolves the pet from starter to hatchling. Idempotent — no-op if already
+/// hatchling or beyond. Returns whether evolution occurred.
+pub fn evolve_to_hatchling(conn: &Connection, pet_id: i64) -> Result<bool, DbError> {
+    let stage: String = conn.query_row(
+        "SELECT stage FROM pet WHERE id = ?1",
+        params![pet_id],
+        |row| row.get(0),
+    )?;
+
+    if stage != "starter" {
+        return Ok(false);
+    }
+
+    conn.execute(
+        "UPDATE pet SET stage = 'hatchling' WHERE id = ?1",
+        params![pet_id],
+    )?;
+    conn.execute(
+        "INSERT INTO growth_events (pet_id, source, points_awarded, related_id)
+         VALUES (?1, 'evolved_to_hatchling', 0, NULL)",
+        params![pet_id],
+    )?;
+
+    Ok(true)
+}
+
+// ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+
+/// Checks whether the pet has crossed the evolution threshold and, if so,
+/// evolves it within the already-open transaction.
+fn check_and_evolve(conn: &Connection, pet_id: i64) -> Result<bool, DbError> {
+    let (stage, growth_resources): (String, i64) = conn.query_row(
+        "SELECT stage, growth_resources FROM pet WHERE id = ?1",
+        params![pet_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+
+    if stage == "starter" && growth_resources >= STARTER_TO_HATCHLING_THRESHOLD {
+        conn.execute(
+            "UPDATE pet SET stage = 'hatchling' WHERE id = ?1",
+            params![pet_id],
+        )?;
+        conn.execute(
+            "INSERT INTO growth_events (pet_id, source, points_awarded, related_id)
+             VALUES (?1, 'evolved_to_hatchling', 0, NULL)",
+            params![pet_id],
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
 
 /// Applies the "silent diminishing returns" rule: if the user has already
 /// earned 20+ points today (calendar day, local time), halve any new points

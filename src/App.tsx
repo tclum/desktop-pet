@@ -12,6 +12,7 @@ import {
   isNotificationPermissionNeeded,
   markNotificationPermissionAsked,
 } from './lib/tauri';
+
 import './styles/pet.css';
 import './styles/productivity.css';
 
@@ -45,6 +46,16 @@ export default function App() {
     triggerPetReactionRef.current?.();
   }, []);
 
+  // Called when a productivity command returns evolved: true.
+  // Re-fetches the pet so PetView detects the stage change and starts the transition.
+  const handleEvolution = useCallback(() => {
+    getPet()
+      .then(setPetState)
+      .catch((err: unknown) => {
+        console.error('Failed to reload pet after evolution:', err);
+      });
+  }, []);
+
   if (loadError) {
     return (
       <div className="pet-window pet-error">
@@ -68,7 +79,7 @@ export default function App() {
         />
       </div>
       <div className="panel-area">
-        <ProductivityPanel onPointsEarned={handlePointsEarned} />
+        <ProductivityPanel onPointsEarned={handlePointsEarned} onEvolution={handleEvolution} />
       </div>
     </div>
   );

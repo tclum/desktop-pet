@@ -4,9 +4,10 @@ import { getTasks, createTask, completeTask, deleteTask } from '../lib/tauri';
 
 interface Props {
   onPointsEarned: (points: number) => void;
+  onEvolution: () => void;
 }
 
-export default function TodoList({ onPointsEarned }: Props) {
+export default function TodoList({ onPointsEarned, onEvolution }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [draft, setDraft] = useState('');
   // Track which task ids are in the process of being removed from the list
@@ -52,8 +53,9 @@ export default function TodoList({ onPointsEarned }: Props) {
       );
 
       completeTask(taskId)
-        .then(({ points_awarded }) => {
+        .then(({ points_awarded, evolved }) => {
           if (points_awarded > 0) onPointsEarned(points_awarded);
+          if (evolved) onEvolution();
           // Begin fade-out, then remove from list after animation.
           setFadingOut((prev) => new Set(prev).add(taskId));
           setTimeout(() => {

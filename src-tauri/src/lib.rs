@@ -57,6 +57,7 @@ pub fn run() {
             start_focus_session,
             complete_focus_session,
             abort_focus_session,
+            evolve_to_hatchling,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -180,6 +181,7 @@ fn create_task(
 #[derive(serde::Serialize)]
 pub struct CompleteTaskDto {
     pub points_awarded: i64,
+    pub evolved: bool,
 }
 
 #[tauri::command]
@@ -190,7 +192,7 @@ fn complete_task(
     let mut conn = state.lock().map_err(|e| e.to_string())?;
     let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
     db::complete_task(&mut conn, task_id, pet_id)
-        .map(|r| CompleteTaskDto { points_awarded: r.points_awarded })
+        .map(|r| CompleteTaskDto { points_awarded: r.points_awarded, evolved: r.evolved })
         .map_err(|e| e.to_string())
 }
 
@@ -227,6 +229,7 @@ impl From<db::FocusSessionRow> for FocusSessionDto {
 #[derive(serde::Serialize)]
 pub struct CompleteFocusDto {
     pub points_awarded: i64,
+    pub evolved: bool,
 }
 
 #[tauri::command]
@@ -249,7 +252,7 @@ fn complete_focus_session(
     let mut conn = state.lock().map_err(|e| e.to_string())?;
     let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
     db::complete_focus_session(&mut conn, session_id, pet_id)
-        .map(|r| CompleteFocusDto { points_awarded: r.points_awarded })
+        .map(|r| CompleteFocusDto { points_awarded: r.points_awarded, evolved: r.evolved })
         .map_err(|e| e.to_string())
 }
 
@@ -260,4 +263,20 @@ fn abort_focus_session(
 ) -> Result<(), String> {
     let conn = state.lock().map_err(|e| e.to_string())?;
     db::abort_focus_session(&conn, session_id).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Evolution commands
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn evolve_to_hatchling(
+    state: tauri::State<'_, Mutex<Connection>>,
+) -> Result<PetStateDto, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::evolve_to_hatchling(&conn, pet_id).map_err(|e| e.to_string())?;
+    db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())
 }
