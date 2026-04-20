@@ -5,6 +5,8 @@
   "windows": ["pet"],
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-position",
     "notification:default"
   ]
 }

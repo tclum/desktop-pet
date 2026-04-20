@@ -329,6 +329,36 @@ pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<(), DbEr
     Ok(())
 }
 
+/// Writes both window-position settings in a single transaction so the pair is
+/// never half-updated if the process dies mid-write.
+pub fn set_window_position(conn: &mut Connection, x: i32, y: i32) -> Result<(), DbError> {
+    let tx = conn.transaction()?;
+    tx.execute(
+        "INSERT INTO settings (key, value) VALUES ('window_position_x', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![x.to_string()],
+    )?;
+    tx.execute(
+        "INSERT INTO settings (key, value) VALUES ('window_position_y', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![y.to_string()],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn get_window_position(conn: &Connection) -> Result<Option<(i32, i32)>, DbError> {
+    let x = get_setting(conn, "window_position_x")?;
+    let y = get_setting(conn, "window_position_y")?;
+    match (x, y) {
+        (Some(xs), Some(ys)) => match (xs.parse::<i32>(), ys.parse::<i32>()) {
+            (Ok(xi), Ok(yi)) => Ok(Some((xi, yi))),
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
+
 /// Refreshes the backup when it is missing or older than 24 hours.
 /// Called after initialization and after each successful DB write.
 pub fn maybe_refresh_backup(db_path: &Path, backup_path: &Path) -> Result<(), DbError> {

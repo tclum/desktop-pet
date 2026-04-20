@@ -61,3 +61,20 @@ export function completeFocusSession(sessionId: number): Promise<CompleteFocusRe
 export function abortFocusSession(sessionId: number): Promise<void> {
   return invoke('abort_focus_session', { sessionId });
 }
+
+// ---------------------------------------------------------------------------
+// Window position commands
+// ---------------------------------------------------------------------------
+
+export interface WindowPosition {
+  x: number;
+  y: number;
+}
+
+export function getWindowPosition(): Promise<WindowPosition | null> {
+  return invoke('get_window_position');
+}
+
+export function setWindowPosition(x: number, y: number): Promise<void> {
+  return invoke('set_window_position', { x, y });
+}

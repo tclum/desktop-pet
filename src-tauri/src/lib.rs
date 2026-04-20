@@ -58,6 +58,8 @@ pub fn run() {
             complete_focus_session,
             abort_focus_session,
             evolve_to_hatchling,
+            get_window_position,
+            set_window_position,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -279,4 +281,34 @@ fn evolve_to_hatchling(
     db::load_pet(&conn)
         .map(PetStateDto::from)
         .map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Window position commands
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct WindowPositionDto {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[tauri::command]
+fn get_window_position(
+    state: tauri::State<'_, Mutex<Connection>>,
+) -> Result<Option<WindowPositionDto>, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    db::get_window_position(&conn)
+        .map(|opt| opt.map(|(x, y)| WindowPositionDto { x, y }))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_window_position(
+    state: tauri::State<'_, Mutex<Connection>>,
+    x: i32,
+    y: i32,
+) -> Result<(), String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    db::set_window_position(&mut conn, x, y).map_err(|e| e.to_string())
 }

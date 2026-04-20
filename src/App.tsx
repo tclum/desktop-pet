@@ -3,7 +3,8 @@ import {
   isPermissionGranted,
   requestPermission,
 } from '@tauri-apps/plugin-notification';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
+import { PhysicalPosition } from '@tauri-apps/api/dpi';
 import PetView from './pet/PetView';
 import ProductivityPanel from './productivity/ProductivityPanel';
 import type { PetState } from './pet/types';
@@ -11,6 +12,8 @@ import {
   getPet,
   isNotificationPermissionNeeded,
   markNotificationPermissionAsked,
+  getWindowPosition,
+  setWindowPosition,
 } from './lib/tauri';
 
 import './styles/pet.css';
@@ -32,6 +35,10 @@ export default function App() {
       });
 
     void setupNotificationPermission();
+    const dragTeardown = setupWindowDragPersistence();
+    return () => {
+      void dragTeardown.then((fn) => fn());
+    };
   }, []);
 
   const handlePetStateUpdate = useCallback((updated: PetState) => {
@@ -71,6 +78,13 @@ export default function App() {
 
   return (
     <div className="pet-window">
+      <div className="drag-zone">
+        <div className="drag-handle" data-tauri-drag-region aria-label="Drag to move window">
+          <span className="drag-handle-dot" />
+          <span className="drag-handle-dot" />
+          <span className="drag-handle-dot" />
+        </div>
+      </div>
       <div className="pet-area">
         <PetView
           petState={petState}
@@ -126,4 +140,62 @@ async function setupNotificationPermission() {
   } catch (err) {
     console.error('notification permission setup failed:', err);
   }
+}
+
+/**
+ * Restores the last-known window position (if still on a valid monitor) and
+ * subscribes to onMoved to persist new positions after the user drags. The
+ * save is trailing-debounced so SQLite sees one write per drag gesture, not
+ * one per pixel.
+ */
+function setupWindowDragPersistence(): Promise<() => void> {
+  const SAVE_DEBOUNCE_MS = 400;
+  const MARGIN_PX = 40;
+
+  return (async () => {
+    const win = getCurrentWindow();
+
+    try {
+      const saved = await getWindowPosition();
+      if (saved) {
+        const monitors = await availableMonitors();
+        // A window is considered on-screen if its top-left lies inside any
+        // monitor's rect with a small inset — this rules out positions where
+        // only a sliver of the title area is visible.
+        const onScreen = monitors.some((m) => {
+          const left = m.position.x;
+          const top = m.position.y;
+          const right = left + m.size.width;
+          const bottom = top + m.size.height;
+          return (
+            saved.x >= left + MARGIN_PX &&
+            saved.y >= top + MARGIN_PX &&
+            saved.x <= right - MARGIN_PX &&
+            saved.y <= bottom - MARGIN_PX
+          );
+        });
+        if (onScreen) {
+          await win.setPosition(new PhysicalPosition(saved.x, saved.y));
+        }
+      }
+    } catch (err) {
+      console.error('failed to restore window position:', err);
+    }
+
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
+    const unlisten = await win.onMoved(({ payload }) => {
+      if (saveTimer !== null) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        saveTimer = null;
+        setWindowPosition(payload.x, payload.y).catch((err) => {
+          console.error('failed to save window position:', err);
+        });
+      }, SAVE_DEBOUNCE_MS);
+    });
+
+    return () => {
+      if (saveTimer !== null) clearTimeout(saveTimer);
+      unlisten();
+    };
+  })();
 }
