@@ -19,9 +19,10 @@ const BREATH_AMPLITUDE = 0.04;
 const REACTION_DURATION_MS = 1500;
 
 // Evolution transition timing (ms from transition start)
-const FADE_OUT_END_MS = 800;
-const PEAK_END_MS = 1100;       // FADE_OUT_END_MS + 300ms peak hold
-const FADE_IN_END_MS = 1900;    // PEAK_END_MS + 800ms fade-in
+const ANTICIPATE_END_MS = 300;   // stillness beat before anything moves
+const FADE_OUT_END_MS   = 1300;  // ANTICIPATE_END + 1000ms fade-out
+const PEAK_END_MS       = 1800;  // FADE_OUT_END + 500ms peak hold
+const FADE_IN_END_MS    = 3300;  // PEAK_END + 1500ms fade-in
 
 function spriteUrl(stage: PetStage): string {
   switch (stage) {
@@ -32,7 +33,7 @@ function spriteUrl(stage: PetStage): string {
   }
 }
 
-type EvolutionPhase = 'idle' | 'fade_out' | 'peak' | 'fade_in';
+type EvolutionPhase = 'idle' | 'anticipate' | 'fade_out' | 'peak' | 'fade_in';
 
 interface EvolutionState {
   phase: EvolutionPhase;
@@ -86,57 +87,84 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
       const evo = evolutionRef.current;
 
       if (evo.phase === 'idle') {
-        // Normal breathing.
+        // Normal breathing — only runs when no transition is active.
         if (breathWrapperRef.current) {
           const scale = 1 + BREATH_AMPLITUDE * Math.sin((now / BREATH_PERIOD_MS) * Math.PI * 2);
           breathWrapperRef.current.style.transform = `scale(${scale.toFixed(4)})`;
         }
       } else {
-        // Evolution transition — breathing suspended, scale held at 1.
+        // Evolution transition — breathing suspended, wrapper held at scale(1).
         if (breathWrapperRef.current) {
           breathWrapperRef.current.style.transform = 'scale(1)';
         }
 
         const elapsed = now - evo.startedAt;
 
-        if (evo.phase === 'fade_out') {
-          // Current sprite fades from 1.0 → 0.2 over 800ms.
-          const t = Math.min(elapsed / FADE_OUT_END_MS, 1);
-          if (currentSpriteRef.current) {
-            currentSpriteRef.current.style.opacity = String((1 - 0.8 * t).toFixed(4));
+        if (evo.phase === 'anticipate') {
+          // 300ms of stillness — nothing moves, no glow. Just hold.
+          if (elapsed >= ANTICIPATE_END_MS) {
+            evolutionRef.current = { ...evo, phase: 'fade_out' };
           }
-          // Glow: 0→1 over first 400ms, then holds at 1.
-          const glowOpacity = elapsed <= 400
-            ? (elapsed / 400).toFixed(4)
+
+        } else if (evo.phase === 'fade_out') {
+          const phaseElapsed = elapsed - ANTICIPATE_END_MS;
+          const fadeDuration = FADE_OUT_END_MS - ANTICIPATE_END_MS; // 1000ms
+
+          // Current sprite: 1.0 → 0.2
+          const fadeT = Math.min(phaseElapsed / fadeDuration, 1);
+          if (currentSpriteRef.current) {
+            currentSpriteRef.current.style.opacity = (1 - 0.8 * fadeT).toFixed(4);
+          }
+
+          // Glow grows over the first 400ms of this phase, then holds at 1.
+          const glowOpacity = phaseElapsed <= 400
+            ? (phaseElapsed / 400).toFixed(4)
             : '1';
           if (evolutionGlowRef.current) {
             evolutionGlowRef.current.style.opacity = glowOpacity;
           }
+
           if (elapsed >= FADE_OUT_END_MS) {
             evolutionRef.current = { ...evo, phase: 'peak' };
           }
+
         } else if (evo.phase === 'peak') {
-          // Sprite frozen at 0.2; glow frozen at 1.0.
-          if (elapsed >= PEAK_END_MS - FADE_OUT_END_MS) {
-            // Swap sprites: hide the old one, start showing the new one at 0.
+          // Sprite frozen at 0.2; glow frozen at 1.0. Wait out the hold.
+          const phaseElapsed = elapsed - FADE_OUT_END_MS;
+          const peakDuration = PEAK_END_MS - FADE_OUT_END_MS; // 500ms
+
+          if (phaseElapsed >= peakDuration) {
+            // Swap sprites: hide old, expose new at opacity 0 / scale 0.85.
             if (currentSpriteRef.current) currentSpriteRef.current.style.opacity = '0';
-            if (nextSpriteRef.current)    nextSpriteRef.current.style.opacity = '0';
+            if (nextSpriteRef.current) {
+              nextSpriteRef.current.style.opacity = '0';
+              nextSpriteRef.current.style.transform = 'scale(0.85)';
+            }
             setDisplayStage(evo.toStage);
             evolutionRef.current = { ...evo, phase: 'fade_in', startedAt: now };
           }
+
         } else if (evo.phase === 'fade_in') {
-          const t = Math.min(elapsed / (FADE_IN_END_MS - PEAK_END_MS), 1);
-          // New sprite fades in; glow fades out.
+          const fadeDuration = FADE_IN_END_MS - PEAK_END_MS; // 1500ms
+          const t = Math.min(elapsed / fadeDuration, 1);
+
+          // New sprite: opacity 0→1, scale 0.85→1.0
           if (nextSpriteRef.current) {
             nextSpriteRef.current.style.opacity = t.toFixed(4);
+            nextSpriteRef.current.style.transform = `scale(${(0.85 + 0.15 * t).toFixed(4)})`;
           }
+          // Glow: 1→0
           if (evolutionGlowRef.current) {
             evolutionGlowRef.current.style.opacity = (1 - t).toFixed(4);
           }
-          if (elapsed >= FADE_IN_END_MS - PEAK_END_MS) {
-            // Transition complete — reset to idle state.
+
+          if (t >= 1) {
+            // Transition complete — restore clean state.
             if (currentSpriteRef.current) currentSpriteRef.current.style.opacity = '1';
-            if (nextSpriteRef.current)    nextSpriteRef.current.style.opacity = '0';
+            if (nextSpriteRef.current) {
+              nextSpriteRef.current.style.opacity = '0';
+              nextSpriteRef.current.style.transform = 'scale(1)';
+            }
             if (evolutionGlowRef.current) evolutionGlowRef.current.style.opacity = '0';
             evolutionRef.current = {
               phase: 'idle',
