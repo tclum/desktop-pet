@@ -113,7 +113,15 @@ export default function App() {
   }
 
   if (!petState) {
-    return <div className="pet-window" />;
+    // Subtle "still waking up" state. Almost-invisible on purpose — the DB
+    // usually returns in milliseconds, so this is only visible on slow
+    // first-launch or if the backend is under load. Avoids the blank flash.
+    return (
+      <div className="pet-window pet-loading">
+        <span className="pet-loading-dot" aria-hidden="true" />
+        <span className="pet-loading-sr">loading your pet</span>
+      </div>
+    );
   }
 
   return (

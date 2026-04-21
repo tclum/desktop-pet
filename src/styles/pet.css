@@ -113,3 +113,34 @@
   text-align: center;
   padding: 20px;
 }
+
+/* Loading state — almost-invisible placeholder while the initial DB round-trip
+   completes. A slowly-pulsing dot where the pet will be, nothing loud. */
+.pet-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pet-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 230, 180, 0.40);
+  animation: pet-loading-pulse 1400ms ease-in-out infinite;
+}
+
+@keyframes pet-loading-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50%      { opacity: 0.70; transform: scale(1.1); }
+}
+
+/* Screen-reader-only label for the loading state */
+.pet-loading-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
