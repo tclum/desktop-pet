@@ -1,165 +1,179 @@
-# Session Notes — April 20–21, 2026
+# Session Notes — April 21, 2026 (Session 2)
 
-Autonomous session working through the priority list in CLAUDE.md. All six
-priorities shipped and pushed. Full summary below.
+Autonomous session working through the priority list in the session prompt.
+All five priorities shipped and pushed across ten commits. Polish phase
+produced several small focused commits per the brief.
 
 ## What shipped
 
-### 1. Debug panel — hidden demo controls (commit `2cf5431`)
+### 1. App-open counts as interaction (commit `bf121c6`)
 
-Keyboard shortcut `Cmd/Ctrl+Shift+D` toggles a small corner overlay with:
-- "reset to starter" — stage=starter, personality=NULL, growth=0, bond=0
-- "+1 growth" / "+5 growth" — adds raw growth resources, triggers evolution check
-- "force evolve" — calls the existing `evolve_to_hatchling` command
+Backend `start_session` command — the single atomic mount call. Computes
+greeting tier against pre-bump `last_interaction_at`, then bumps the
+timestamp and logs a `session_open` behavioral signal. Returns
+`{ tier, pet }` together so there's no ordering race between tier
+calculation and timestamp bump.
 
-Backend commands (`debug_reset_pet`, `debug_add_growth`) are always available,
-not gated by build profile, so the founder can demo a release build. Debug
-growth deliberately does *not* write to `growth_events` — that ledger stays
-clean for real productivity history. Evolution rows are still written by
-`check_and_evolve` when a threshold crosses, which is correct.
+Does NOT add bond — per the brief, opening the computer counts for presence
+but bond growth stays reserved for explicit care (click, task complete,
+focus complete).
 
-Panel is deliberately utilitarian: monospace, tiny, muted colours. Not part
-of the product surface.
+Replaces the two-call `getPet` + `checkGreeting` pattern in App.tsx.
+`check_greeting` command remains registered for any future isolated callers.
 
-### 2. Time-aware greeting (commit `9f04b58`)
+**Side effects:**
+- Resting visual clears on app open (`seconds_since_last_interaction` is
+  now zero after mount)
+- Greeting cycle resets; next absence tier is measured from the session-open
+  bump, not the last explicit interaction
 
-Backend `check_greeting` command, called once on app mount. Tiers the
-greeting from `seconds_since_last_interaction`:
+### 2. Pre-commit hook (commit `ed4699b`)
 
-| Tier   | Threshold  | Visual                                    |
-|--------|------------|-------------------------------------------|
-| none   | <30 min    | Nothing                                   |
-| small  | 30m–4h     | 1.8s warm pulse, peak 0.35 opacity        |
-| medium | 4h–24h     | 3.2s warm pulse, peak 0.55 opacity        |
-| large  | >24h       | 4.5s soft sustained warm wash, peak 0.75  |
+`scripts/hooks/pre-commit` runs `tsc --noEmit` + `cargo check` only when the
+staged diff includes TypeScript or Rust files. Docs-only commits skip both.
+`scripts/install-hooks.sh` symlinks the hook into `.git/hooks` so clean
+clones opt in with one command. `CONTRIBUTING.md` documents the setup and
+why the hook exists.
 
-Persists `last_greeted_at` in `settings`; if the last greeting was under
-30 min ago, skip (prevents rapid-toggle re-fires). Writes a `greeted`
-behavioral signal when a tier fires.
+Specifically prevents the class of "builds but doesn't run" bug that slipped
+through last session (`PetView` `ReferenceError`).
 
-Frontend: pending greeting is buffered until PetView's RAF loop registers
-its trigger, so the animation never races the initial load.
+### 3. First evolution (hatchling → stage1) with personality lean (commit `4bde803`)
 
-### 3. Second reaction type (commit `33a67cb`)
+The big one.
 
-Task completion and focus completion now look visually distinct:
-- Task (and pet click): fast warm pulse, 1.5s, peak 0.45
-- Focus: slower, deeper, held glow, 2.6s, peak 0.70
+**Backend:**
+- Schema v6→v7 extends `growth_events.source` CHECK with `evolved_to_stage1`.
+- `HATCHLING_TO_STAGE1_THRESHOLD = 10` (demo value — production ~80 per
+  § The Point / Resource Economy).
+- `compute_personality_lean()` scores on demand from `behavioral_signals`:
+    - `powerful_score = sum(focus_completed value) / 15`
+    - `cuddly_score = 1.0·gentle_care + 0.5·session_open + 0.3·task_created + 0.3·task_edited`
+- Task completion itself is **not** scored — without an eccentric personality
+  in v1, assigning task completions to either axis would push everyone one
+  way. Ties resolve to cuddly (warm-default tone).
+- `check_and_evolve` handles both starter → hatchling and hatchling →
+  stage1; the stage1 path locks personality in inside the same transaction.
+- `debug_force_evolve_stage1(personality)` command for demos.
 
-Threaded `ReactionKind = 'task' | 'focus'` through `ProductivityPanel` →
-App → `PetView`. TodoList and FocusTimer keep their original
-`onPointsEarned(points)` signatures; the panel injects the kind at the
-boundary. Pet now has a small vocabulary instead of a single response.
+**Frontend:**
+- `PetForm` type union combines `(stage, personality)` into a single
+  sprite-routing key. `spriteUrl` takes a form; `petFormKey` derives it.
+- Two SVG placeholder sprites (round/warm cuddly, angular/poised powerful).
+  SVG chosen over PNG because (a) no dev dep required to generate, (b)
+  hand-writable, (c) artist-friend replacements will drop in trivially at
+  the `spriteUrl` mapping.
+- New "stage1 reveal" transition variant: peak holds 1200ms (vs 500ms default);
+  glow stays at full opacity through the first 35% of fade-in so the new form
+  materialises *through* the light. Total transition 4.7s vs 3.3s default.
+- `EvolutionState` now uses `PetForm` (from/to) so the transition fires on
+  personality lock-in even though raw stage alone would miss the nuance.
+- Debug panel gains "force → stage1 cuddly" and "force → stage1 powerful"
+  buttons alongside the existing "force → hatchling".
 
-### 4. Phase C minimal essentials (commit `8b958c3`)
+### 4. Phase C full: bond warmth + vacation greeting (commit `404f762`)
 
-Schema migration v5 → v6 adds `bond INTEGER NOT NULL DEFAULT 0` to `pet`.
-Bond is monotonically non-decreasing — per non-negotiable, absence costs
-nothing. Grows inside existing interaction transactions:
-- Pet click: +1
-- Task completion: +1
-- Focus completion: +1 per 15 min completed, clamped [1, 8]
+**Bond warmth:** a faint always-on radial glow behind the pet whose opacity
+tracks accumulated bond on a log curve (cap 0.18, slope 0.05). At bond = 10
+barely visible; at bond = 100 a subtle hum; at bond = 1000 reaches the cap.
+Never displayed as a number or bar — the user feels the space around their
+pet getting cozier over months of use without being measured. Transition is
+1.6s so incremental bond changes read as warming, not notification pulses.
 
-Resting visual: `.pet-view--resting` CSS class applied when
-`seconds_since_last_interaction ≥ 24h`. Subtle `filter: saturate(0.75)
-brightness(0.95)` on the sprite. Clears instantly on any interaction
-(derived from re-fetched pet state, not a running timer).
+**Vacation greeting:** splits the large tier at 72h. Returns under 3 days keep
+the existing large warm-wash; returns past 3 days get the new `vacation` tier
+with a deeper, longer wash (5.2s, peak 0.85) AND a one-shot scale bump (+8%)
+on the pet itself at the greeting's peak. The pet visibly perks up in
+recognition — a distinct signal that this is a return, not just another
+session.
 
-Vacation signal: `check_greeting` writes a `vacation_return` behavioral
-signal when absence crosses 3 days. Future Phase C work can key off it.
-No decay, no penalty — structurally impossible given how the rest is
-built.
+### 5. Polish pass (5 commits)
 
-`bond` is exposed in PetStateDto / PetState but not displayed yet. No
-visible counter, per the non-negotiable against XP bars.
+Small focused changes:
 
-### 5. UI copy polish (commit `a5f0a6f`)
-
-Two light touches:
-- `FocusTimer.COMPLETION_MESSAGES` expanded from 3 to 6 variations:
-  added "That was nice.", "Well spent.", "Glad you were here."
-  All understated, all warm, none grand.
-- App error page reworded: "Something got in the way of loading your
-  pet." + a reassurance line "Your save is still safe. Try restarting
-  the app." Raw error kept but visually muted.
-
-Other strings reviewed and left alone — they already match the
-companion tone.
-
-### 6. TypeScript cleanup (commit `3118e1e`)
-
-`npx tsc --noEmit` was flagging three errors. All now pass clean:
-1. Added `src/vite-env.d.ts` with the standard Vite client reference,
-   which supplies ambient module declarations for `*.png` imports.
-2. Fixed FocusTimer's `COMPLETION_MESSAGES[...]` lookup under
-   `noUncheckedIndexedAccess` — fell back to `''`.
-3. **Caught a real bug**: `PetView`'s greeting commit referenced
-   `onRegisterGreetingTrigger` in the function body without
-   destructuring it from props. This would have thrown a
-   `ReferenceError` on render. `npm run vite:build` doesn't
-   typecheck, so it passed my verification step and shipped broken.
-   Now destructured; feature works.
+- **`6e65e6f` — Loading state.** Replaces the empty `<div />` placeholder
+  with a slowly-pulsing warm dot + SR-only "loading your pet" label. Barely
+  perceptible; removes the blank flash on slow launches.
+- **`b5cfcfc` — Warm focus ring.** Replaces the browser-blue default with a
+  `:focus-visible`-gated cream ring. Inputs carry focus via border-color +
+  matching box-shadow glow.
+- **`111781e` — Keyboard-accessible inline edit.** Todo title span gets
+  `role="button"`, `tabIndex={0}`, and Enter/Space handler. `stopPropagation`
+  prevents dnd-kit's keyboard sensor from eating Space as drag-start.
+- **`84e00d1` — Focus-done keyboard + fade-in.** "Session complete" view
+  now fades in with a small upward-drift, accepts Enter/Space/Escape to
+  dismiss, has `tabIndex={0}`, and reads the completion message via
+  `aria-label`.
+- **`12d4d24` — Debug panel closes on Escape.** Gated on visibility so
+  Escape doesn't disrupt text inputs when the panel is hidden.
 
 ## Notes for Taylor
 
-### The greeting shipped broken for one commit
-
-Commits `9f04b58` → `33a67cb` had a runtime `ReferenceError` in
-`PetView` because I forgot to destructure a prop. My verification
-step was `npm run vite:build`, which does *not* run `tsc`. The TS
-cleanup commit (`3118e1e`) caught and fixed it, but for any manual
-testing you did between those commits, the app wouldn't have
-rendered. **Worth adding `tsc --noEmit` as a standard verification
-step before each commit** — or wiring it into a pre-commit hook.
-
 ### Design decisions I made without asking
 
-- **Bond accumulation rates.** Pet click = +1, task = +1, focus =
-  +1 per 15 min clamped [1, 8]. These are starting points, tunable.
-  No design doc had specific rates; I picked values that make focus
-  sessions contribute more bond than quick clicks, matching the
-  "sustained presence is what the relationship is built on" framing.
-- **Resting threshold: 24 hours.** Short enough to register "absence"
-  but long enough that a normal workday + sleep cycle doesn't
-  trigger it. If you want the pet to look quieter earlier (say 12h),
-  flip the constant in `PetView.tsx`.
-- **Greeting tier thresholds: 30min / 4h / 24h.** Generous on purpose
-  per the design's "welcomed, not re-onboarded" framing.
-- **Opening the app does *not* currently count as an interaction**
-  for `last_interaction_at`. The greeting plays, but the user still
-  has to click the pet (or complete a task) for bond/interaction to
-  register. This is consistent with care-vs-greeting separation.
-  Might be worth revisiting — the design says "opening the computer
-  counts." I left it alone for this sprint.
+- **Task completion is deliberately unscored for personality lean.** Without
+  eccentric in v1, scoring tasks toward any axis pushes most users there.
+  Ties resolve to cuddly. If playtesting shows almost everyone ending up
+  cuddly, revisit: maybe short-burst-of-focus → powerful, single-task-days
+  → cuddly. For now, the simpler scoring is honest about what v1 can measure.
+- **`HATCHLING_TO_STAGE1_THRESHOLD = 10`** for demo. Production should be ~80.
+  With the current `+5 growth` debug button, a demo can reach stage1 in
+  2 clicks after forcing hatchling.
+- **Bond-warmth curve: cap 0.18, slope 0.05, `log10(bond + 1)`.** Tuned by
+  feel. Tunable in `PetView.tsx`. The log curve ensures early bonds feel
+  unrewarded (as they should — showing up for a day shouldn't glow loud)
+  while sustained bond has visible effect.
+- **Vacation threshold stays at 3 days.** Matches the existing
+  `VACATION_THRESHOLD_SECONDS` constant which already drove the behavioral
+  signal. Now it drives both the greeting tier split and the signal.
+- **Greeting tier visual (vacation):** scale-bump of +8% on the pet during
+  the glow peak, 5.2s total (vs 4.5s for large). Felt like the right amount
+  of "perk up" without being a cartoon bounce.
 
-### Open questions I surfaced but didn't resolve
+### Things to watch / open questions
 
-- Should app-open count as an interaction (bump `last_interaction_at`)?
-  Leaning yes per the design, but wanted your call before changing
-  it — it affects bond accumulation, greeting tiering, and resting
-  state.
-- The `debug_add_growth` write to `growth_events` was originally
-  done but removed — I concluded that polluting the real productivity
-  ledger with debug rows is worse than missing the debug boost in
-  any future analytics. You may disagree; easy to re-add.
+- **First-run race:** `start_session` calls `check_greeting` first, which
+  may write `settings.last_greeted_at`. Then `mark_session_open` bumps
+  `last_interaction_at`. Both are under the same Mutex lock. No issues
+  observed, but something to watch if concurrent reads ever enter the
+  picture.
+
+- **SVG vs PNG decision:** I used SVG for the two new stage1 sprites because
+  adding a PNG-encoding dep for placeholder art seemed wasteful. The real
+  artist art will almost certainly arrive as PNG; swap point is the single
+  `spriteUrl` function. If the artist friends' pipeline is SVG-native
+  (unlikely but possible), even less work.
+
+- **Debug panel and stage1:** "force → stage1 cuddly" works from any stage
+  (starter, hatchling). It leaps two stages if invoked on starter, which is
+  fine for demos but worth noting — a real user can't do this.
+
+- **Pre-commit hook DID block a bad commit.** When testing P3 I briefly
+  had an unresolved PetStage import issue before I'd added the new imports;
+  the hook would have blocked it. tsc ran clean by the time I committed.
+  Hook is doing its job.
 
 ### What I did not touch
 
-- Focus timer logic (per your constraints)
-- Pet rendering/evolution transitions (except adding new overlays)
+- Focus timer internal logic (unchanged, just added fade-in + keyboard)
+- Pet rendering core RAF loop (added bond-warmth + vacation scale bump,
+  kept existing breathing / evolution / reaction / greeting structure)
 - Productivity panel layout
 - Window dragging
+- CLAUDE.md copy beyond the Build Phase Tracker + schema version line (felt
+  load-bearing for future sessions' accuracy)
 
 ### Nothing skipped
 
-All six priorities on the list shipped. Nothing was deferred for
-design ambiguity or scope. The session had time to spare — the list
-was well-scoped.
+All five priorities on the list shipped. The polish pass did five small
+commits; could have done more but the items I found felt like they'd be
+chasing tail. Happy to go deeper if you point me at specific things next
+session.
 
 ### Build status at end of session
 
 - `cargo check`: clean
-- `npm run vite:build`: clean
-- `npx tsc --noEmit`: clean (was failing with 3 errors at session start)
+- `npx tsc --noEmit`: clean
+- Pre-commit hook verified working (blocked my own attempts mid-development)
 
-All seven commits pushed to `origin/main`.
+All ten commits pushed to `origin/main`.

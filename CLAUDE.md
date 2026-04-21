@@ -37,7 +37,7 @@ The product exists in memory of a cat named Meowzers (see design doc). Every des
 
 ### Schema version
 
-Current: **v5**. Migrations v1→v2→v3→v4→v5 are all in place in `src-tauri/src/db/mod.rs`. Schema includes: `pet`, `schema_version`, `settings`, `tasks`, `focus_sessions`, `growth_events`, `behavioral_signals`.
+Current: **v7**. Migrations v1→v2→v3→v4→v5→v6→v7 are all in place in `src-tauri/src/db/mod.rs`. Schema includes: `pet` (with `growth_resources`, `bond`, `personality`), `schema_version`, `settings`, `tasks` (with `display_order`), `focus_sessions`, `growth_events` (source includes `evolved_to_stage1`), `behavioral_signals`.
 
 ### Known pending items (not urgent, not blocking)
 
@@ -191,14 +191,14 @@ Do not improvise these. If a decision touches one, surface the question rather t
 
 - [x] **Phase A:** Skeleton (Tauri + SQLite + CI/CD)
 - [x] **Phase B:** A pet exists (sprite, breathing, reaction, persistence)
-- [ ] **Phase C:** The pet lives across time (survival signals, bond, vacation handling, greeting notifications)
+- [x] **Phase C (mostly):** Time-aware greeting (4 tiers + vacation), bond counter, resting visual, vacation signal, bond-warmth glow. Remaining: notification scheduling (deferred to Phase H signed-build).
 - [x] **Phase D:** Productivity exists (todo list, focus timer, growth resources, calendar-day diminishing returns)
-- [x] **Phase E (partial):** Sprite loading + first evolution ritual. Remaining: personality lean scoring surfaces, second evolution stage.
+- [x] **Phase E:** Two evolutions shipped — starter→hatchling (ceremonial transition), hatchling→stage1 with personality lock-in (extended "reveal" transition, two placeholder sprites for cuddly/powerful). Personality lean computed on demand from behavioral_signals. Remaining: stage2 evolution.
 - [ ] **Phase F:** Stages 1 and 2 polished (both personalities, both stages) — needs "wants" system designed first
 - [ ] **Phase G:** Polish, onboarding, demo flow — needs onboarding designed first
 - [ ] **Phase H:** Pre-launch (beta, code signing, distribution) — verify notification permissions with signed build
 
-Note: Phases are no longer strictly sequential. Phase C was skipped over to keep momentum; will be revisited. Phase E was started early for demo value.
+Note: Phases are no longer strictly sequential. Phase E jumped ahead for demo value; Phase C is being filled in incrementally.
 
 ---
 
