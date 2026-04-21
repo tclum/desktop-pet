@@ -9,12 +9,14 @@ import PetView from './pet/PetView';
 import ProductivityPanel from './productivity/ProductivityPanel';
 import DebugPanel from './debug/DebugPanel';
 import type { PetState } from './pet/types';
+import type { GreetingTier } from './lib/tauri';
 import {
   getPet,
   isNotificationPermissionNeeded,
   markNotificationPermissionAsked,
   getWindowPosition,
   setWindowPosition,
+  checkGreeting,
 } from './lib/tauri';
 
 import './styles/pet.css';
@@ -25,6 +27,11 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Signals the pet to play its reaction glow when productivity points are earned.
   const triggerPetReactionRef = useRef<(() => void) | null>(null);
+  // Signals the pet to play its tier-specific welcome-back animation.
+  const triggerPetGreetingRef = useRef<((tier: GreetingTier) => void) | null>(null);
+  // Pending greeting tier, held until PetView registers its trigger — the
+  // backend call may resolve before the RAF loop is ready to receive.
+  const pendingGreetingRef = useRef<GreetingTier | null>(null);
 
   useEffect(() => {
     getPet()
@@ -33,6 +40,17 @@ export default function App() {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('Failed to load pet:', msg);
         setLoadError(msg);
+      });
+
+    checkGreeting()
+      .then((tier) => {
+        if (tier === 'none') return;
+        const fire = triggerPetGreetingRef.current;
+        if (fire) fire(tier);
+        else pendingGreetingRef.current = tier;
+      })
+      .catch((err: unknown) => {
+        console.error('Failed to check greeting:', err);
       });
 
     void setupNotificationPermission();
@@ -49,6 +67,18 @@ export default function App() {
   const handleRegisterPetReaction = useCallback((trigger: () => void) => {
     triggerPetReactionRef.current = trigger;
   }, []);
+
+  const handleRegisterPetGreeting = useCallback(
+    (trigger: (tier: GreetingTier) => void) => {
+      triggerPetGreetingRef.current = trigger;
+      const pending = pendingGreetingRef.current;
+      if (pending !== null) {
+        pendingGreetingRef.current = null;
+        trigger(pending);
+      }
+    },
+    [],
+  );
 
   const handlePointsEarned = useCallback((_points: number) => {
     triggerPetReactionRef.current?.();
@@ -91,6 +121,7 @@ export default function App() {
           petState={petState}
           onPetStateUpdate={handlePetStateUpdate}
           onRegisterReactionTrigger={handleRegisterPetReaction}
+          onRegisterGreetingTrigger={handleRegisterPetGreeting}
         />
       </div>
       <div className="panel-area">

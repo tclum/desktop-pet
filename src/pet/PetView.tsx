@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { PetState, PetStage } from './types';
+import type { GreetingTier } from '../lib/tauri';
 import { recordPetInteraction } from '../lib/tauri';
 import starterPng from '../assets/pets/starter.png';
 import hatchlingPng from '../assets/pets/hatchling.png';
@@ -8,6 +9,7 @@ interface Props {
   petState: PetState;
   onPetStateUpdate: (updated: PetState) => void;
   onRegisterReactionTrigger: (trigger: () => void) => void;
+  onRegisterGreetingTrigger: (trigger: (tier: GreetingTier) => void) => void;
 }
 
 // Breathing
@@ -17,6 +19,16 @@ const BREATH_AMPLITUDE = 0.04;
 
 // Reaction glow (click / points earned)
 const REACTION_DURATION_MS = 1500;
+
+// Greeting glow — tier-driven "welcome back" on session start.
+// Thresholds match the backend tiers in db::check_greeting. Longer absences
+// get a gentler, longer wash — never loud, never guilt-laced.
+const GREETING_SMALL_DURATION_MS = 1800;
+const GREETING_MEDIUM_DURATION_MS = 3200;
+const GREETING_LARGE_DURATION_MS = 4500;
+const GREETING_SMALL_PEAK_OPACITY = 0.35;
+const GREETING_MEDIUM_PEAK_OPACITY = 0.55;
+const GREETING_LARGE_PEAK_OPACITY = 0.75;
 
 // Evolution transition timing (ms from transition start)
 const ANTICIPATE_END_MS = 300;   // stillness beat before anything moves
@@ -30,6 +42,15 @@ function spriteUrl(stage: PetStage): string {
     case 'hatchling': return hatchlingPng;
     // stage1 / stage2 fall back to hatchling until those sprites are added.
     default:          return hatchlingPng;
+  }
+}
+
+function greetingParams(tier: GreetingTier): [duration: number, peak: number] {
+  switch (tier) {
+    case 'small':  return [GREETING_SMALL_DURATION_MS, GREETING_SMALL_PEAK_OPACITY];
+    case 'medium': return [GREETING_MEDIUM_DURATION_MS, GREETING_MEDIUM_PEAK_OPACITY];
+    case 'large':  return [GREETING_LARGE_DURATION_MS, GREETING_LARGE_PEAK_OPACITY];
+    default:       return [0, 0];
   }
 }
 
@@ -51,11 +72,13 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
   const currentSpriteRef = useRef<HTMLImageElement>(null);
   const nextSpriteRef = useRef<HTMLImageElement>(null);
   const reactionGlowRef = useRef<HTMLDivElement>(null);
+  const greetingGlowRef = useRef<HTMLDivElement>(null);
   const evolutionGlowRef = useRef<HTMLDivElement>(null);
 
   const rafIdRef = useRef<number | null>(null);
   const lastFrameAtRef = useRef(0);
   const reactionStartedAtRef = useRef<number | null>(null);
+  const greetingRef = useRef<{ startedAt: number; tier: GreetingTier } | null>(null);
   const evolutionRef = useRef<EvolutionState>({
     phase: 'idle',
     startedAt: 0,
@@ -190,6 +213,25 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
           }
         }
       }
+
+      // Greeting glow (independent of reaction and evolution).
+      // Small: single sine pulse. Medium: single sustained pulse, higher peak.
+      // Large: same curve as medium but slower and warmer — more "there you are."
+      if (greetingGlowRef.current) {
+        const greeting = greetingRef.current;
+        if (greeting !== null) {
+          const [duration, peakOpacity] = greetingParams(greeting.tier);
+          const elapsed = now - greeting.startedAt;
+          if (elapsed >= duration) {
+            greetingRef.current = null;
+            greetingGlowRef.current.style.opacity = '0';
+          } else {
+            const progress = elapsed / duration;
+            greetingGlowRef.current.style.opacity =
+              (Math.sin(progress * Math.PI) * peakOpacity).toFixed(4);
+          }
+        }
+      }
     };
 
     rafIdRef.current = requestAnimationFrame(tick);
@@ -225,6 +267,13 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
       reactionStartedAtRef.current = performance.now();
     });
   }, [onRegisterReactionTrigger]);
+
+  useEffect(() => {
+    onRegisterGreetingTrigger((tier: GreetingTier) => {
+      if (tier === 'none') return;
+      greetingRef.current = { startedAt: performance.now(), tier };
+    });
+  }, [onRegisterGreetingTrigger]);
 
   const handlePetClick = useCallback(() => {
     // Only react to clicks outside a transition.
@@ -262,6 +311,9 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
 
       {/* Reaction glow — warm pulse on click / points earned */}
       <div ref={reactionGlowRef} className="pet-reaction-glow" style={{ opacity: 0 }} />
+
+      {/* Greeting glow — tier-driven "welcome back" on session start */}
+      <div ref={greetingGlowRef} className="pet-greeting-glow" style={{ opacity: 0 }} />
 
       {/* Evolution glow — expanding radial wash during stage transition */}
       <div ref={evolutionGlowRef} className="pet-evolution-glow" style={{ opacity: 0 }} />

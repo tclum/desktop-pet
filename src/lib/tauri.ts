@@ -103,3 +103,9 @@ export function debugResetPet(): Promise<PetState> {
 export function debugAddGrowth(delta: number): Promise<DebugAddGrowthResult> {
   return invoke('debug_add_growth', { delta });
 }
+
+export type GreetingTier = 'none' | 'small' | 'medium' | 'large';
+
+export function checkGreeting(): Promise<GreetingTier> {
+  return invoke('check_greeting');
+}

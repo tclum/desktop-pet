@@ -64,6 +64,7 @@ pub fn run() {
             set_window_position,
             debug_reset_pet,
             debug_add_growth,
+            check_greeting,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -350,6 +351,14 @@ fn set_window_position(
 pub struct DebugAddGrowthDto {
     pub evolved: bool,
     pub pet: PetStateDto,
+}
+
+#[tauri::command]
+fn check_greeting(
+    state: tauri::State<'_, Mutex<Connection>>,
+) -> Result<db::GreetingTier, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    db::check_greeting(&mut conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

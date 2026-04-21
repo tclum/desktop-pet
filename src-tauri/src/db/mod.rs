@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection};
+use serde::Serialize;
 use std::path::Path;
 use thiserror::Error;
 
@@ -749,6 +750,77 @@ fn check_and_evolve(conn: &Connection, pet_id: i64) -> Result<bool, DbError> {
     } else {
         Ok(false)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Greeting — time-aware "welcome back" on app startup
+// ---------------------------------------------------------------------------
+
+/// Tiers are chosen so the pet feels *glad*, never guilt-inducing:
+/// short absences get the quietest acknowledgment; long absences get the
+/// warmest welcome. Thresholds are generous on purpose — per the design,
+/// a user returning after a vacation should feel welcomed, not re-onboarded.
+const GREETING_MIN_GAP_SECONDS: i64 = 30 * 60;           // 30 min since last greeting → skip
+const GREETING_SMALL_SECONDS: i64 = 30 * 60;             // 30 min
+const GREETING_MEDIUM_SECONDS: i64 = 4 * 60 * 60;        // 4 h
+const GREETING_LARGE_SECONDS: i64 = 24 * 60 * 60;        // 24 h
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GreetingTier {
+    None,
+    Small,
+    Medium,
+    Large,
+}
+
+pub fn check_greeting(conn: &mut Connection) -> Result<GreetingTier, DbError> {
+    let pet = load_pet(conn)?;
+    let seconds_since_interaction = pet.seconds_since_last_interaction;
+
+    // If we greeted recently, skip — prevents a rapid re-open from re-firing.
+    let last_greeted_raw = get_setting(conn, "last_greeted_at")?;
+    if let Some(raw) = last_greeted_raw {
+        let seconds_since_greeting: Option<i64> = conn
+            .query_row(
+                "SELECT CAST((julianday('now') - julianday(?1)) * 86400 AS INTEGER)",
+                params![raw],
+                |row| row.get(0),
+            )
+            .ok();
+        if let Some(gap) = seconds_since_greeting {
+            if gap < GREETING_MIN_GAP_SECONDS {
+                return Ok(GreetingTier::None);
+            }
+        }
+    }
+
+    let tier = if seconds_since_interaction < GREETING_SMALL_SECONDS {
+        GreetingTier::None
+    } else if seconds_since_interaction < GREETING_MEDIUM_SECONDS {
+        GreetingTier::Small
+    } else if seconds_since_interaction < GREETING_LARGE_SECONDS {
+        GreetingTier::Medium
+    } else {
+        GreetingTier::Large
+    };
+
+    if !matches!(tier, GreetingTier::None) {
+        let tx = conn.transaction()?;
+        tx.execute(
+            "INSERT INTO settings (key, value) VALUES ('last_greeted_at', datetime('now'))
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [],
+        )?;
+        tx.execute(
+            "INSERT INTO behavioral_signals (pet_id, signal_type, value)
+             VALUES (?1, 'greeted', NULL)",
+            params![pet.id],
+        )?;
+        tx.commit()?;
+    }
+
+    Ok(tier)
 }
 
 // ---------------------------------------------------------------------------
