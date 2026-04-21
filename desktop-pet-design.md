@@ -717,6 +717,89 @@ Developers are a natural audience for this product. The design philosophy — co
 
 The developer audience might eventually become a primary user base even though the core product is positioned universally. That's fine — the design philosophy works for everyone, and developers are just particularly well-suited to appreciate and spread it. If developer traction is real, positioning-wise, the pet can be "for people who make things" without narrowing the actual audience.
 
+### External Task Source Integrations
+
+A separate integration category from developer tools: letting users connect productivity tools they already live in (Notion, Todoist, Things, Linear, etc.) so the pet grows from work happening elsewhere.
+
+**Why this matters:**
+
+A meaningful subset of users already have their tasks and work organized in external tools. Asking them to duplicate that into our app is friction most won't accept. If the pet can quietly watch their external task activity and grow from it, the app becomes a *companion to* their existing workflow rather than trying to replace it.
+
+**Notion as the first case:**
+
+Notion is the most natural first integration because:
+- Deeply embedded in the productivity-curious audience (developers, knowledge workers, the people our design appeals to most)
+- Rich public API with OAuth and webhook support
+- Most users have a recognizable task-database pattern even if structure varies
+
+What an integration could look like:
+- User connects their Notion workspace via OAuth
+- App subscribes to a specific task database (or pulls periodically with user consent)
+- Task completions in Notion count as productivity signals, feeding pet growth
+- Optionally surfaces Notion tasks in the pet's productivity panel for quick reference
+
+**Principles for external task integrations:**
+
+- **One-way observation is much safer than two-way sync.** Watching external activity and feeding growth signals is cleaner than trying to sync state bidirectionally. Two-way sync opens an avalanche of edge cases (concurrent edits, conflicts, offline handling, rate limits). Start observational; add sync only if it becomes clearly necessary.
+- **Local-first where possible.** Respect privacy non-negotiables. Where data must transit external services (Notion's API is cloud-based), be transparent about what's sent and minimize it.
+- **Don't own the user's task list.** If Notion is their source of truth, it stays their source of truth. The pet doesn't try to become the canonical place.
+- **Fail gracefully.** External APIs go down, rate-limit, change schemas. The app keeps working if the integration breaks.
+
+**Sequencing:**
+
+- **v2.x:** Notion read-only integration (observe task completions, feed growth)
+- **v3.x:** Additional integrations based on user demand (Todoist, Linear, etc.)
+- **v4.x+:** Consider light sync capabilities only if observation proves insufficient
+
+**Strategic note:**
+
+External integrations position the pet as *companion across tools*, not competitor to any of them. This is philosophically coherent with the "the pet is yours; it lives alongside you" framing. It also opens the Future Directions vision of an ambient pet that reflects the user's entire productive digital life back at them, across whatever tools they use.
+
+### The Noticing Layer
+
+A gentle pattern-surfacing feature that lets the pet's accumulated observations become visible to the user, designed specifically to avoid the judgment/surveillance traps that most productivity analytics fall into.
+
+**Core distinction: noticing vs. knowing.**
+
+The app doesn't know who the user is. It *notices things*. That distinction matters deeply. Knowing claims authority over another person. Noticing is tentative, observational, respectful — the way a friend who's been paying attention might gently say "I've noticed you've been quieter than usual lately — is everything okay?"
+
+**What it could look like:**
+
+Periodically (weekly, monthly, or on-demand), the app offers a quiet panel: *"Here are some things I've noticed. Want to take a look?"* The user opts in or ignores. If they look, they see descriptive observations:
+
+- "You worked most on Tuesday and Wednesday this week"
+- "Your focus sessions averaged 32 minutes"
+- "You completed 12 tasks, 3 of which had been on your list for over a week"
+- "The task 'follow up with Sarah' has been sitting for 9 days"
+- "Your most productive block of days in the last month was early April"
+
+Descriptive, not prescriptive. No conclusions, no diagnoses, no prescribed actions. Just observations the user can do anything (or nothing) with.
+
+**Non-negotiable design principles:**
+
+- **Describes, never prescribes.** "You worked 2 hours today" is acceptable. "You should work more" is not.
+- **Observes behavior, never claims motivation.** "You didn't complete this task" is fine. "You avoided this task because..." is wildly overreach.
+- **User authority is absolute.** If the app says "I noticed you're avoiding this task" and the user says "no, I just don't care about it anymore," the user is right.
+- **Opt-in only.** Noticings appear when the user asks, not unprompted.
+- **Dismissable without penalty.** No "you haven't reviewed your patterns in a week" nagging. Users can ignore forever.
+- **The pet never does the noticing.** The pet is love, the app is help. The pet's voice is never evaluative. Noticings come from the app, not from the pet.
+
+**Why this is the right long-term form for the "read the user" vision:**
+
+Most "AI knows you" features either feel creepy (the app claims to know things about you it shouldn't) or feel off (the app's claims about you are wrong). The noticing framing sidesteps both by being honest about what the app can actually see (behavioral patterns) and what it can't (motivations, feelings, identity).
+
+Over time, as the data accumulates across months and years, the notices can become richer without becoming overconfident. A pet that's been with you for 18 months can meaningfully say "your focus sessions are usually around 45 minutes — this week they've been 20" because it's *earned* that observational history. Same pet saying the same thing at week one would feel presumptuous.
+
+**Sequencing:**
+
+- **v2.x:** Basic noticings — simple pattern surfacing, weekly opt-in panel
+- **v3.x:** Richer observations as more data accumulates; optional mood check-ins for context
+- **v4.x+:** LLM-enhanced noticings that can surface more nuanced patterns, carefully constrained to stay descriptive rather than prescriptive
+
+**Strategic note:**
+
+This is the feature that eventually makes the pet feel like *a friend who knows you* — the "watched you for years and actually paid attention" experience. It's the natural endpoint of the long-arc design. But it's earned through time, not assigned through typing. That's why this lives in Future Directions: it can only exist meaningfully after the user and pet have accumulated a real relationship.
+
 
 
 These additions aren't separate — they're facets of the same direction:
