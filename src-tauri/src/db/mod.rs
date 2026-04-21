@@ -872,6 +872,25 @@ pub fn check_greeting(conn: &mut Connection) -> Result<GreetingTier, DbError> {
     Ok(tier)
 }
 
+/// Bumps `last_interaction_at` without adding bond. Used when the app opens —
+/// per the design, "opening the computer counts" for presence, but bond growth
+/// is reserved for explicit interactions (click, task complete, focus complete).
+///
+/// Intended to be called *after* greeting tier computation so the greeting
+/// uses the pre-bump timestamp and the fresh pet picks up seconds = 0.
+pub fn mark_session_open(conn: &Connection, pet_id: i64) -> Result<(), DbError> {
+    conn.execute(
+        "UPDATE pet SET last_interaction_at = datetime('now') WHERE id = ?1",
+        params![pet_id],
+    )?;
+    conn.execute(
+        "INSERT INTO behavioral_signals (pet_id, signal_type, value)
+         VALUES (?1, 'session_open', NULL)",
+        params![pet_id],
+    )?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Debug / demo helpers
 //

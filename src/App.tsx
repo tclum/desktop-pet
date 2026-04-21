@@ -17,7 +17,7 @@ import {
   markNotificationPermissionAsked,
   getWindowPosition,
   setWindowPosition,
-  checkGreeting,
+  startSession,
 } from './lib/tauri';
 
 import './styles/pet.css';
@@ -35,23 +35,22 @@ export default function App() {
   const pendingGreetingRef = useRef<GreetingTier | null>(null);
 
   useEffect(() => {
-    getPet()
-      .then(setPetState)
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('Failed to load pet:', msg);
-        setLoadError(msg);
-      });
-
-    checkGreeting()
-      .then((tier) => {
+    // One atomic call: computes greeting tier against the pre-bump timestamp,
+    // bumps last_interaction_at so the pet returns with a cleared resting
+    // state, and hands back both. Replaces the earlier getPet + checkGreeting
+    // pair which had a race where the tier could be computed after the bump.
+    startSession()
+      .then(({ tier, pet }) => {
+        setPetState(pet);
         if (tier === 'none') return;
         const fire = triggerPetGreetingRef.current;
         if (fire) fire(tier);
         else pendingGreetingRef.current = tier;
       })
       .catch((err: unknown) => {
-        console.error('Failed to check greeting:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Failed to start session:', msg);
+        setLoadError(msg);
       });
 
     void setupNotificationPermission();

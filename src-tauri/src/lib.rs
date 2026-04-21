@@ -65,6 +65,7 @@ pub fn run() {
             debug_reset_pet,
             debug_add_growth,
             check_greeting,
+            start_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -359,6 +360,30 @@ fn check_greeting(
 ) -> Result<db::GreetingTier, String> {
     let mut conn = state.lock().map_err(|e| e.to_string())?;
     db::check_greeting(&mut conn).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize)]
+pub struct StartSessionDto {
+    pub tier: db::GreetingTier,
+    pub pet: PetStateDto,
+}
+
+/// Single atomic entry point called once on app mount. Greeting tier is
+/// computed against the pre-bump `last_interaction_at`, then the timestamp
+/// is bumped so the returned pet reflects a cleared resting state. Bond is
+/// NOT incremented — app-open is presence, not a care gesture.
+#[tauri::command]
+fn start_session(
+    state: tauri::State<'_, Mutex<Connection>>,
+) -> Result<StartSessionDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let tier = db::check_greeting(&mut conn).map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::mark_session_open(&conn, pet_id).map_err(|e| e.to_string())?;
+    let pet = db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())?;
+    Ok(StartSessionDto { tier, pet })
 }
 
 #[tauri::command]

@@ -109,3 +109,12 @@ export type GreetingTier = 'none' | 'small' | 'medium' | 'large';
 export function checkGreeting(): Promise<GreetingTier> {
   return invoke('check_greeting');
 }
+
+export interface StartSessionResult {
+  tier: GreetingTier;
+  pet: PetState;
+}
+
+export function startSession(): Promise<StartSessionResult> {
+  return invoke('start_session');
+}
