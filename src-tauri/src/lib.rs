@@ -65,8 +65,10 @@ pub fn run() {
             debug_reset_pet,
             debug_add_growth,
             debug_force_evolve_stage1,
+            debug_reset_onboarding,
             check_greeting,
             start_session,
+            complete_onboarding,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -422,6 +424,36 @@ fn debug_force_evolve_stage1(
     let mut conn = state.lock().map_err(|e| e.to_string())?;
     let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
     db::debug_force_evolve_stage1(&mut conn, pet_id, &personality)
+        .map_err(|e| e.to_string())?;
+    db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn debug_reset_onboarding(
+    state: tauri::State<'_, Mutex<Connection>>,
+) -> Result<PetStateDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::debug_reset_onboarding(&mut conn, pet_id).map_err(|e| e.to_string())?;
+    db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding command
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn complete_onboarding(
+    state: tauri::State<'_, Mutex<Connection>>,
+    environment: String,
+) -> Result<PetStateDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::complete_onboarding(&mut conn, pet_id, &environment)
         .map_err(|e| e.to_string())?;
     db::load_pet(&conn)
         .map(PetStateDto::from)

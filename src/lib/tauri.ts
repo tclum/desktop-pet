@@ -3,7 +3,7 @@
  * here so the rest of the app has fully-typed boundaries.
  */
 import { invoke } from '@tauri-apps/api/core';
-import type { PetState } from '../pet/types';
+import type { Environment, PetState } from '../pet/types';
 import type { Task, FocusSession, CompleteTaskResult, CompleteFocusResult } from '../productivity/types';
 
 export function getPet(): Promise<PetState> {
@@ -108,6 +108,14 @@ export function debugForceEvolveStage1(
   personality: 'cuddly' | 'powerful',
 ): Promise<PetState> {
   return invoke('debug_force_evolve_stage1', { personality });
+}
+
+export function debugResetOnboarding(): Promise<PetState> {
+  return invoke('debug_reset_onboarding');
+}
+
+export function completeOnboarding(environment: Environment): Promise<PetState> {
+  return invoke('complete_onboarding', { environment });
 }
 
 export type GreetingTier = 'none' | 'small' | 'medium' | 'large' | 'vacation';

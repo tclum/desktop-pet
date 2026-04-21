@@ -3,7 +3,12 @@ use serde::Serialize;
 use std::path::Path;
 use thiserror::Error;
 
-const SCHEMA_TARGET_VERSION: i64 = 7;
+const SCHEMA_TARGET_VERSION: i64 = 8;
+
+/// The five v1 environments, kept in sync with the frontend union type.
+/// Mapping to personality flavor lives in desktop-pet-design.md §
+/// Environments as Cosmetic Skins; the backend just validates the value.
+const VALID_ENVIRONMENTS: &[&str] = &["forest", "countryside", "mountain", "ocean", "city"];
 
 // DEMO thresholds. Production values per § The Point / Resource Economy:
 //   starter → hatchling:       ~20 growth resources
@@ -101,6 +106,9 @@ fn apply_migrations(conn: &Connection) -> Result<(), DbError> {
     }
     if current < 7 {
         migrate_6_to_7(conn)?;
+    }
+    if current < 8 {
+        migrate_7_to_8(conn)?;
     }
 
     Ok(())
@@ -295,6 +303,35 @@ fn migrate_6_to_7(conn: &Connection) -> Result<(), DbError> {
     Ok(())
 }
 
+fn migrate_7_to_8(conn: &Connection) -> Result<(), DbError> {
+    // Onboarding state. `has_completed_onboarding` gates the first-launch
+    // flow; `environment` is the cosmetic skin chosen during onboarding
+    // (see § Environments as Cosmetic Skins, Not New Personalities).
+    //
+    // Existing pets predating this migration get has_completed_onboarding=1
+    // so they don't suddenly see the onboarding screen on upgrade — the user
+    // has clearly already "started" with them. Environment stays NULL for
+    // pre-v8 pets; downstream code must tolerate that (no cosmetic flavor
+    // for legacy pets, which is strictly a cosmetic omission).
+    conn.execute_batch(
+        "BEGIN;
+
+        ALTER TABLE pet ADD COLUMN has_completed_onboarding INTEGER NOT NULL DEFAULT 0
+            CHECK(has_completed_onboarding IN (0, 1));
+        ALTER TABLE pet ADD COLUMN environment TEXT NULL
+            CHECK(environment IS NULL OR environment IN
+                ('forest','countryside','mountain','ocean','city'));
+
+        UPDATE pet SET has_completed_onboarding = 1
+            WHERE created_at < datetime('now');
+
+        UPDATE schema_version SET version = 8;
+
+        COMMIT;",
+    )?;
+    Ok(())
+}
+
 /// Creates a starter pet on first launch. Logs a warning if multiple rows exist
 /// (shouldn't happen, but handled gracefully per v1 spec).
 fn ensure_starter_pet(conn: &Connection) -> Result<(), DbError> {
@@ -328,6 +365,8 @@ pub struct PetRow {
     pub last_interaction_at: String,
     pub seconds_since_last_interaction: i64,
     pub bond: i64,
+    pub has_completed_onboarding: bool,
+    pub environment: Option<String>,
 }
 
 pub fn get_current_pet_id(conn: &Connection) -> Result<i64, DbError> {
@@ -348,12 +387,15 @@ pub fn load_pet(conn: &Connection) -> Result<PetRow, DbError> {
              personality,
              last_interaction_at,
              CAST((julianday('now') - julianday(last_interaction_at)) * 86400 AS INTEGER),
-             bond
+             bond,
+             has_completed_onboarding,
+             environment
          FROM pet
          ORDER BY created_at DESC
          LIMIT 1",
         [],
         |row| {
+            let onboarding_flag: i64 = row.get(7)?;
             Ok(PetRow {
                 id: row.get(0)?,
                 created_at: row.get(1)?,
@@ -362,6 +404,8 @@ pub fn load_pet(conn: &Connection) -> Result<PetRow, DbError> {
                 last_interaction_at: row.get(4)?,
                 seconds_since_last_interaction: row.get(5)?,
                 bond: row.get(6)?,
+                has_completed_onboarding: onboarding_flag != 0,
+                environment: row.get(8)?,
             })
         },
     )?;
@@ -1032,6 +1076,57 @@ pub fn mark_session_open(conn: &Connection, pet_id: i64) -> Result<(), DbError> 
          VALUES (?1, 'session_open', NULL)",
         params![pet_id],
     )?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding
+// ---------------------------------------------------------------------------
+
+/// Commits the end of the first-launch onboarding flow: stores the chosen
+/// environment and flips has_completed_onboarding in one transaction so the
+/// pet never ends up "onboarded with no environment" or vice versa.
+pub fn complete_onboarding(
+    conn: &mut Connection,
+    pet_id: i64,
+    environment: &str,
+) -> Result<(), DbError> {
+    if !VALID_ENVIRONMENTS.contains(&environment) {
+        return Err(DbError::Sqlite(rusqlite::Error::InvalidParameterName(
+            format!("invalid environment: {environment}"),
+        )));
+    }
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE pet
+         SET has_completed_onboarding = 1,
+             environment = ?1
+         WHERE id = ?2",
+        params![environment, pet_id],
+    )?;
+    tx.execute(
+        "INSERT INTO behavioral_signals (pet_id, signal_type, value)
+         VALUES (?1, 'onboarding_completed', NULL)",
+        params![pet_id],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Debug-only: flips has_completed_onboarding back to 0 and clears the
+/// environment so the founder can re-test the onboarding flow without
+/// wiping growth / bond history. Pet identity and accumulated care are
+/// preserved — this is purely about re-showing the intro screens.
+pub fn debug_reset_onboarding(conn: &mut Connection, pet_id: i64) -> Result<(), DbError> {
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE pet
+         SET has_completed_onboarding = 0,
+             environment = NULL
+         WHERE id = ?1",
+        params![pet_id],
+    )?;
+    tx.commit()?;
     Ok(())
 }
 

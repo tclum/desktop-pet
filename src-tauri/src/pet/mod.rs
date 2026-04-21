@@ -14,6 +14,10 @@ pub struct PetStateDto {
     pub seconds_since_last_interaction: i64,
     /// Monotonically non-decreasing. Grows from interactions, never shrinks.
     pub bond: i64,
+    /// False until the first-launch onboarding flow completes.
+    pub has_completed_onboarding: bool,
+    /// One of forest, countryside, mountain, ocean, city. NULL for pre-v8 pets.
+    pub environment: Option<String>,
 }
 
 impl From<PetRow> for PetStateDto {
@@ -26,6 +30,8 @@ impl From<PetRow> for PetStateDto {
             last_interaction_at: row.last_interaction_at,
             seconds_since_last_interaction: row.seconds_since_last_interaction,
             bond: row.bond,
+            has_completed_onboarding: row.has_completed_onboarding,
+            environment: row.environment,
         }
     }
 }

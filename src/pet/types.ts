@@ -1,4 +1,5 @@
 export type PetStage = 'starter' | 'hatchling' | 'stage1' | 'stage2';
+export type Environment = 'forest' | 'countryside' | 'mountain' | 'ocean' | 'city';
 
 /**
  * Combines stage + personality into a single key used to pick the sprite
@@ -23,4 +24,8 @@ export interface PetState {
   seconds_since_last_interaction: number;
   /** Monotonically non-decreasing. Grows from interactions, never shrinks. */
   bond: number;
+  /** False until the first-launch onboarding flow completes. */
+  has_completed_onboarding: boolean;
+  /** One of forest/countryside/mountain/ocean/city. null for pre-v8 pets. */
+  environment: Environment | null;
 }
