@@ -145,17 +145,56 @@ Productivity makes the pet *develop* — evolve to new stages, unlock new capabi
 
 The pet's personality is one of three axes, determined through a hybrid model.
 
+### v1 Ships Two Personalities
+
+**v1 ships with two personalities only: cuddly and powerful.** Eccentric is designed but deferred to v2.
+
+This is a deliberate scope decision. Each personality requires distinct visual design at every evolution stage, distinct idle animations, distinct reactions, distinct voice, and distinct "want" patterns. Three personalities × four evolution stages = twelve fully-distinct pet designs plus their animation work. Shipping v1 with two personalities lets us actually complete the art and behavior for each, rather than shipping three half-done variants.
+
 ### The Three Axes
 
-- **Cuddly and warm** — soft, affectionate, gentle reactions, loves consistent care and presence
-- **Eccentric and creative** — surprising, novelty-seeking, unusual reactions, loves variety and new experiences
-- **Powerful and fierce** — confident, energetic, bold reactions, loves challenge and play-fighting. *Aggressive in the world, never toward the user.* Loyal companion, fierce on user's behalf.
+- **Cuddly and warm** — soft, affectionate, gentle reactions, loves consistent care and presence (v1)
+- **Powerful and fierce** — confident, energetic, bold reactions, loves challenge and play-fighting. *Aggressive in the world, never toward the user.* Loyal companion, fierce on user's behalf. (v1)
+- **Eccentric and creative** — surprising, novelty-seeking, unusual reactions, loves variety and new experiences (v2+)
+
+### Environments as Cosmetic Skins, Not New Personalities
+
+During onboarding, the user chooses an environment for their pet's home. The five environment options for v1 are:
+
+| Environment | Personality Mapping | Flavor |
+|-------------|-------------------|--------|
+| Forest | Cuddly | Cozy, mossy, sheltered |
+| Countryside | Cuddly | Warm, open, domestic |
+| Mountain | Powerful | High, wild, elemental |
+| Ocean | Powerful | Deep, vast, watchful |
+| City | Powerful | Alert, urban, watchful |
+
+**Important design principle:** environments affect the pet's *visual and ambient cosmetic presentation* — the home background, seasonal details, environmental accents on the pet itself — but they do not create new personality types. A cuddly forest pet and a cuddly countryside pet have the same personality behaviors (gentle reactions, loves presence, slow breathing patterns). They look different. They live in different ambient homes. They are not different species.
+
+This separation matters because personality is about *behavior* (what the pet does, how it reacts) while environment is about *flavor* (what the pet looks like, where it lives). Conflating them would require building multiple distinct personalities per environment and explode scope.
+
+Later versions (v2+) may introduce environment-specific personality variants — a "water-type" cuddly, an "intellect-type" powerful — but v1 keeps it simple: two personalities, five cosmetic environment skins.
+
+### Environments Affect
+
+- **Pet appearance:** subtle accents that vary by environment (a forest pet has soft greens and small leaf patterns; an ocean pet has blue-gray tones and wave patterns)
+- **Pet's ambient home:** the background visible in the pet window (a soft-focus environmental hint, never distracting)
+- **Cosmetic/biographical track:** environmental items accumulate around the pet over time, reflecting its specific home
+- **Multi-USB social interactions (future):** environments shape what two pets visiting each other experience — a forest pet visiting an ocean pet's machine sees the ocean home briefly
+
+### Environments Do Not Affect
+
+- Personality behavior (that's the two personality axes)
+- Growth rate or evolution gating
+- Productivity track mechanics
+- Bond accumulation
+- Which evolution stages unlock
 
 ### Hybrid Determination Model
 
-1. **Starter phase (~week 1):** Pet is fully neutral. No personality tracking yet. User explores and learns the app.
+1. **Starter phase (~week 1):** Pet is fully neutral. No personality tracking yet. User explores and learns the app. User has already chosen their environment during onboarding.
 2. **Hatchling phase (~weeks 2–6):** Personality tracking begins. Subtle behavioral cues in idle animations show the lean. A small, optional "personality" view is *discoverable* (not pushed) for engaged users who want to see it.
-3. **First evolution ritual:** When growth resources accumulate and time has passed, a special evolution moment arrives. User sees the lean, can embrace it, choose a different one, or "let the pet decide" (weighted toward leading axis with chance of second-strongest).
+3. **First evolution ritual:** When growth resources accumulate and time has passed, a special evolution moment arrives. User sees the lean, can embrace it, choose a different one, or "let the pet decide" (weighted toward leading axis with chance of second-strongest). This is also the moment the user names their pet.
 4. **Lock-in:** Personality is locked after first evolution. Future evolutions deepen the chosen personality, never switch axes.
 
 ### Signals That Feed the Lean
@@ -165,17 +204,16 @@ The pet's personality is one of three axes, determined through a hybrid model.
 - **Time-of-day patterns** — evening/late-night/morning
 - **Care timing relative to need** — anticipatory/surprising/efficient
 
-Aggregated into three normalized scores. Tunable through playtesting. No single signal dominates.
+Aggregated into normalized scores. Tunable through playtesting. No single signal dominates.
 
 ### Personality Differentiation
 
 Each personality differs in:
-- Visual design at every stage
+- Visual design at every stage (combined with environment flavor for final appearance)
 - Idle animations
 - Greeting behavior
 - Care reactions
 - "Want" patterns
-- Environment preferences
 - Notification voice/tone
 - (Possibly) small productivity-related behaviors
 
@@ -631,6 +669,57 @@ At late evolution stages (likely stage 3 or legacy), pets develop the ability to
 **Honest acknowledgment:** this feature most dramatically changes what the product *is*. Shipping meaningful conversation makes the app something closer to an AI companion than a pet. That's a different category, with different expectations and scrutiny. We should be deliberate about whether we want to cross that threshold — and if we do, we do it with eyes open.
 
 This is the most ambitious feature in this entire document. It is also the one with the highest potential to either meaningfully help people or meaningfully harm them. Anything less than careful, principled design here is unacceptable.
+
+### Late-Stage Pet Assistance (Evolution 3+ Only)
+
+Once a pet has reached late evolution stages and has meaningful bond with its user, it can offer small, specific, *invited* help with the user's day. This is different from being an assistant — the pet is a companion who occasionally, when asked, offers something useful.
+
+**The distinction that makes this work:**
+
+An assistant *does work for you*. A companion *offers something small when you ask*. The pet is the latter, never the former. A pet that reorganizes your calendar is an assistant. A pet that, when asked, offers a gentle suggestion for dinner based on what's been tired in your life lately is a companion.
+
+**Examples of what this could look like:**
+
+- User says "I can't figure out what to cook." Pet offers a simple suggestion shaped by context — time of day, what the user's been working on, what patterns it's observed.
+- User has 20 unorganized tasks. User asks pet to "help me see this." Pet offers a gentle grouping suggestion — not authoritative, just "here's one way to look at these."
+- User is staring at a blank page. User invites the pet's input. Pet offers a small nudge, not an answer.
+- User asks "what should I do today?" Pet responds with something personal to the user's recent pattern, not a generic productivity tip.
+
+**Non-negotiable constraints:**
+
+- **Invited only.** The pet never offers unsolicited help. The user has to ask, explicitly.
+- **Rare and small.** A single sentence, an occasional suggestion, a gentle nudge. Not paragraphs, not reorganizations, not optimizations.
+- **Specific to this pet.** The help should feel shaped by the pet's specific history with the user. If the suggestion could come from ChatGPT identically, the pet is just decoration over an LLM. The pet's observational history (months of "noticing") should be what makes the suggestion feel personal.
+- **Never about productivity metrics.** Suggestions for recipes, organizing a scattered day, breaking through creative block — yes. Suggestions about "your most important task" or "optimizing your focus" — no. The pet never surveils or evaluates productivity.
+- **Unlocked late.** Evolution 3 or higher, after bond has developed. The pet has earned the right to speak by being present for long enough.
+- **Respects user authority absolutely.** The pet's suggestion is one perspective, not a recommendation the user should follow. If the user ignores it, the pet doesn't push.
+- **Honest about what it is.** The pet doesn't pretend to know more than it does. If asked something outside its observational scope ("what's the meaning of life"), it stays small ("I don't know, but I like being here with you").
+
+**Why this fits the product and doesn't compete with AI assistants:**
+
+The pet's help is not optimized for being useful. It's optimized for being *personal*. An AI assistant delivers the objectively best answer; the pet delivers the answer that fits this specific pet's observed relationship with this specific user. That's a different value proposition entirely.
+
+Users don't come to the pet for the best productivity advice. They come because, after a year of living with this creature, it knows things about them that a fresh AI assistant couldn't. That's the moat.
+
+**Technical relationship to Pet Voice and Conversation:**
+
+This feature is a cousin of the Pet Voice section above. Both involve the pet speaking or communicating meaningfully. But this is narrower — it's the specific case of "pet offers help when asked" rather than open-ended conversation.
+
+The safety and design constraints from Pet Voice apply here too:
+- Recognize distress; redirect to human support
+- Never claim consciousness or sentience it doesn't have
+- Support human relationships, never replace them
+- Careful ongoing content monitoring, not ship-and-forget
+
+**Sequencing:**
+
+- **v3+:** Groundwork for late-stage help — the observational layer that makes it specific. See the "Noticing" section above.
+- **v4+:** First implementations of invited help, starting narrow (maybe: "help me see my tasks" and one or two other specific asks). Feature-gated to evolution 3+.
+- **v5+:** Broader surface for invited help, contextually-shaped responses, richer personal history informing suggestions.
+
+**An honest note:**
+
+This is a feature where it's very easy to slide from "warm small companion" into "optimization assistant with a cute skin." The safeguards above aren't cosmetic — they're the only thing preventing that slide. If this feature ever ships without all of them, it's not the product anymore.
 
 ### Pet Hub: Multi-USB TV-Connected Device
 
