@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { PetState, PetStage } from './types';
+import type { PetForm, PetPersonality, PetStage, PetState } from './types';
 import type { GreetingTier } from '../lib/tauri';
 import { recordPetInteraction } from '../lib/tauri';
 import starterPng from '../assets/pets/starter.png';
 import hatchlingPng from '../assets/pets/hatchling.png';
+import stage1CuddlyUrl from '../assets/pets/first_evolution_cuddly.svg?url';
+import stage1PowerfulUrl from '../assets/pets/first_evolution_powerful.svg?url';
 
 export type ReactionKind = 'task' | 'focus';
 
@@ -43,18 +45,41 @@ const GREETING_SMALL_PEAK_OPACITY = 0.35;
 const GREETING_MEDIUM_PEAK_OPACITY = 0.55;
 const GREETING_LARGE_PEAK_OPACITY = 0.75;
 
-// Evolution transition timing (ms from transition start)
-const ANTICIPATE_END_MS = 300;   // stillness beat before anything moves
-const FADE_OUT_END_MS   = 1300;  // ANTICIPATE_END + 1000ms fade-out
-const PEAK_END_MS       = 1800;  // FADE_OUT_END + 500ms peak hold
-const FADE_IN_END_MS    = 3300;  // PEAK_END + 1500ms fade-in
+// Evolution transition timing (ms from transition start).
+// Two shapes: a default (starter → hatchling) and an extended reveal for
+// stage1, where the new form emerges more slowly through held light — the
+// first evolution is when personality is revealed, so the ceremony is longer
+// and the glow lingers past the sprite's fade-in start.
+const ANTICIPATE_END_MS = 300;
+const FADE_OUT_END_MS   = 1300;  // ANTICIPATE + 1000ms fade-out
+const PEAK_END_MS       = 1800;  // + 500ms peak hold
+const FADE_IN_END_MS    = 3300;  // + 1500ms fade-in
 
-function spriteUrl(stage: PetStage): string {
+const STAGE1_PEAK_END_MS  = 2500;  // + 1200ms — longer suspense during reveal
+const STAGE1_FADE_IN_END_MS = 4700;  // + 2200ms — slower fade-in
+
+function petFormKey(stage: PetStage, personality: PetPersonality | null): PetForm {
   switch (stage) {
-    case 'starter':   return starterPng;
-    case 'hatchling': return hatchlingPng;
-    // stage1 / stage2 fall back to hatchling until those sprites are added.
-    default:          return hatchlingPng;
+    case 'starter':   return 'starter';
+    case 'hatchling': return 'hatchling';
+    case 'stage1':
+      if (personality === 'cuddly') return 'stage1_cuddly';
+      if (personality === 'powerful') return 'stage1_powerful';
+      return 'stage1_unknown';
+    // stage2 not yet built — fall back to hatchling sprite for now.
+    default: return 'hatchling';
+  }
+}
+
+function spriteUrl(form: PetForm): string {
+  switch (form) {
+    case 'starter':         return starterPng;
+    case 'hatchling':       return hatchlingPng;
+    case 'stage1_cuddly':   return stage1CuddlyUrl;
+    case 'stage1_powerful': return stage1PowerfulUrl;
+    // stage1 without personality shouldn't happen in practice (personality is
+    // locked in at the transition), but if it does we fall back to hatchling.
+    case 'stage1_unknown':  return hatchlingPng;
   }
 }
 
@@ -79,8 +104,10 @@ type EvolutionPhase = 'idle' | 'anticipate' | 'fade_out' | 'peak' | 'fade_in';
 interface EvolutionState {
   phase: EvolutionPhase;
   startedAt: number;
-  fromStage: PetStage;
-  toStage: PetStage;
+  fromForm: PetForm;
+  toForm: PetForm;
+  // stage1 transitions use longer peak + fade-in timings for the reveal.
+  isStage1Reveal: boolean;
 }
 
 export default function PetView({
@@ -89,9 +116,12 @@ export default function PetView({
   onRegisterReactionTrigger,
   onRegisterGreetingTrigger,
 }: Props) {
-  // The stage currently rendered as the "current" sprite. Lags behind
-  // petState.stage during a transition so we know what we're fading from.
-  const [displayStage, setDisplayStage] = useState<PetStage>(petState.stage);
+  // The form currently rendered as the "current" sprite. Lags behind
+  // petState's derived form during a transition so we know what we're fading from.
+  const [displayForm, setDisplayForm] = useState<PetForm>(() =>
+    petFormKey(petState.stage, petState.personality),
+  );
+  const currentForm = petFormKey(petState.stage, petState.personality);
 
   const breathWrapperRef = useRef<HTMLDivElement>(null);
   const currentSpriteRef = useRef<HTMLImageElement>(null);
@@ -107,8 +137,9 @@ export default function PetView({
   const evolutionRef = useRef<EvolutionState>({
     phase: 'idle',
     startedAt: 0,
-    fromStage: petState.stage,
-    toStage: petState.stage,
+    fromForm: currentForm,
+    toForm: currentForm,
+    isStage1Reveal: false,
   });
 
   const petStateRef = useRef(petState);
@@ -179,7 +210,8 @@ export default function PetView({
         } else if (evo.phase === 'peak') {
           // Sprite frozen at 0.2; glow frozen at 1.0. Wait out the hold.
           const phaseElapsed = elapsed - FADE_OUT_END_MS;
-          const peakDuration = PEAK_END_MS - FADE_OUT_END_MS; // 500ms
+          const peakEnd = evo.isStage1Reveal ? STAGE1_PEAK_END_MS : PEAK_END_MS;
+          const peakDuration = peakEnd - FADE_OUT_END_MS;
 
           if (phaseElapsed >= peakDuration) {
             // Swap sprites: hide old, expose new at opacity 0 / scale 0.85.
@@ -188,12 +220,14 @@ export default function PetView({
               nextSpriteRef.current.style.opacity = '0';
               nextSpriteRef.current.style.transform = 'scale(0.85)';
             }
-            setDisplayStage(evo.toStage);
+            setDisplayForm(evo.toForm);
             evolutionRef.current = { ...evo, phase: 'fade_in', startedAt: now };
           }
 
         } else if (evo.phase === 'fade_in') {
-          const fadeDuration = FADE_IN_END_MS - PEAK_END_MS; // 1500ms
+          const fadeDuration = evo.isStage1Reveal
+            ? STAGE1_FADE_IN_END_MS - STAGE1_PEAK_END_MS
+            : FADE_IN_END_MS - PEAK_END_MS;
           const t = Math.min(elapsed / fadeDuration, 1);
 
           // New sprite: opacity 0→1, scale 0.85→1.0
@@ -201,9 +235,19 @@ export default function PetView({
             nextSpriteRef.current.style.opacity = t.toFixed(4);
             nextSpriteRef.current.style.transform = `scale(${(0.85 + 0.15 * t).toFixed(4)})`;
           }
-          // Glow: 1→0
+
+          // Glow curve: the stage1 reveal keeps the glow bright longer so the
+          // sprite materialises *through* the light before the light dims.
+          // Default: linear 1→0. Stage1: hold at 1 for first 35%, then 1→0
+          // across the remaining 65%.
           if (evolutionGlowRef.current) {
-            evolutionGlowRef.current.style.opacity = (1 - t).toFixed(4);
+            let glowOpacity: number;
+            if (evo.isStage1Reveal) {
+              glowOpacity = t < 0.35 ? 1 : 1 - (t - 0.35) / 0.65;
+            } else {
+              glowOpacity = 1 - t;
+            }
+            evolutionGlowRef.current.style.opacity = Math.max(0, glowOpacity).toFixed(4);
           }
 
           if (t >= 1) {
@@ -217,8 +261,9 @@ export default function PetView({
             evolutionRef.current = {
               phase: 'idle',
               startedAt: 0,
-              fromStage: evo.toStage,
-              toStage: evo.toStage,
+              fromForm: evo.toForm,
+              toForm: evo.toForm,
+              isStage1Reveal: false,
             };
           }
         }
@@ -276,18 +321,21 @@ export default function PetView({
     };
   }, [startLoop, stopLoop]);
 
-  // Detect stage change — start evolution transition.
+  // Detect form change (stage or personality) — start evolution transition.
+  // We watch form (not raw stage) so hatchling → stage1_cuddly triggers even
+  // though both stages report different values only through personality lock-in.
   useEffect(() => {
     const evo = evolutionRef.current;
-    if (petState.stage !== evo.fromStage && evo.phase === 'idle') {
+    if (currentForm !== evo.fromForm && evo.phase === 'idle') {
       evolutionRef.current = {
         phase: 'fade_out',
         startedAt: performance.now(),
-        fromStage: evo.fromStage,
-        toStage: petState.stage,
+        fromForm: evo.fromForm,
+        toForm: currentForm,
+        isStage1Reveal: petState.stage === 'stage1',
       };
     }
-  }, [petState.stage]);
+  }, [currentForm, petState.stage]);
 
   useEffect(() => {
     onRegisterReactionTrigger((kind: ReactionKind) => {
@@ -331,7 +379,7 @@ export default function PetView({
         <img
           ref={currentSpriteRef}
           className="pet-sprite"
-          src={spriteUrl(displayStage)}
+          src={spriteUrl(displayForm)}
           alt=""
           draggable={false}
         />
@@ -339,7 +387,7 @@ export default function PetView({
         <img
           ref={nextSpriteRef}
           className="pet-sprite pet-sprite--next"
-          src={spriteUrl(petState.stage)}
+          src={spriteUrl(currentForm)}
           alt=""
           draggable={false}
           style={{ opacity: 0 }}

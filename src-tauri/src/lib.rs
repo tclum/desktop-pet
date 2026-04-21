@@ -64,6 +64,7 @@ pub fn run() {
             set_window_position,
             debug_reset_pet,
             debug_add_growth,
+            debug_force_evolve_stage1,
             check_greeting,
             start_session,
         ])
@@ -411,4 +412,18 @@ fn debug_add_growth(
         .map(PetStateDto::from)
         .map_err(|e| e.to_string())?;
     Ok(DebugAddGrowthDto { evolved: result.evolved, pet })
+}
+
+#[tauri::command]
+fn debug_force_evolve_stage1(
+    state: tauri::State<'_, Mutex<Connection>>,
+    personality: String,
+) -> Result<PetStateDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::debug_force_evolve_stage1(&mut conn, pet_id, &personality)
+        .map_err(|e| e.to_string())?;
+    db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())
 }

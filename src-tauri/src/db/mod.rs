@@ -3,11 +3,14 @@ use serde::Serialize;
 use std::path::Path;
 use thiserror::Error;
 
-const SCHEMA_TARGET_VERSION: i64 = 6;
+const SCHEMA_TARGET_VERSION: i64 = 7;
 
-// DEMO: starter → hatchling at 5 growth resources. Production should be 20.
-// See "The Point / Resource Economy" in desktop-pet-design.md.
+// DEMO thresholds. Production values per § The Point / Resource Economy:
+//   starter → hatchling:       ~20 growth resources
+//   hatchling → 1st evolution: ~80 growth resources
+// Kept low for demos so evolutions are reachable in minutes.
 const STARTER_TO_HATCHLING_THRESHOLD: i64 = 5;
+const HATCHLING_TO_STAGE1_THRESHOLD: i64 = 10;
 
 #[derive(Debug, Error)]
 pub enum DbError {
@@ -95,6 +98,9 @@ fn apply_migrations(conn: &Connection) -> Result<(), DbError> {
     }
     if current < 6 {
         migrate_5_to_6(conn)?;
+    }
+    if current < 7 {
+        migrate_6_to_7(conn)?;
     }
 
     Ok(())
@@ -246,6 +252,43 @@ fn migrate_5_to_6(conn: &Connection) -> Result<(), DbError> {
         ALTER TABLE pet ADD COLUMN bond INTEGER NOT NULL DEFAULT 0;
 
         UPDATE schema_version SET version = 6;
+
+        COMMIT;",
+    )?;
+    Ok(())
+}
+
+fn migrate_6_to_7(conn: &Connection) -> Result<(), DbError> {
+    // Extend growth_events.source CHECK with 'evolved_to_stage1'. SQLite can't
+    // alter a CHECK in place, so we follow the same recreate-and-copy recipe
+    // used in migrate_3_to_4. Data is preserved verbatim.
+    conn.execute_batch(
+        "BEGIN;
+
+        CREATE TABLE growth_events_new (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            pet_id         INTEGER NOT NULL REFERENCES pet(id),
+            source         TEXT    NOT NULL
+                               CHECK(source IN (
+                                   'task_completed',
+                                   'focus_completed',
+                                   'evolved_to_hatchling',
+                                   'evolved_to_stage1'
+                               )),
+            points_awarded INTEGER NOT NULL,
+            occurred_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+            related_id     INTEGER
+        );
+
+        INSERT INTO growth_events_new
+            (id, pet_id, source, points_awarded, occurred_at, related_id)
+        SELECT id, pet_id, source, points_awarded, occurred_at, related_id
+        FROM growth_events;
+
+        DROP TABLE growth_events;
+        ALTER TABLE growth_events_new RENAME TO growth_events;
+
+        UPDATE schema_version SET version = 7;
 
         COMMIT;",
     )?;
@@ -760,12 +803,42 @@ pub fn evolve_to_hatchling(conn: &Connection, pet_id: i64) -> Result<bool, DbErr
     Ok(true)
 }
 
+/// Debug-only force evolve past hatchling into stage1 with a specific
+/// personality. Idempotent — only runs when stage is 'hatchling' (or
+/// 'starter' for convenience; we jump two stages for demos). Production
+/// code should never call this; stage1 evolution goes through the growth
+/// threshold + `compute_personality_lean` path in `check_and_evolve`.
+pub fn debug_force_evolve_stage1(
+    conn: &mut Connection,
+    pet_id: i64,
+    personality: &str,
+) -> Result<(), DbError> {
+    if !matches!(personality, "cuddly" | "powerful") {
+        return Err(DbError::Sqlite(rusqlite::Error::InvalidParameterName(
+            format!("personality must be 'cuddly' or 'powerful', got {personality}"),
+        )));
+    }
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE pet SET stage = 'stage1', personality = ?1 WHERE id = ?2",
+        params![personality, pet_id],
+    )?;
+    tx.execute(
+        "INSERT INTO growth_events (pet_id, source, points_awarded, related_id)
+         VALUES (?1, 'evolved_to_stage1', 0, NULL)",
+        params![pet_id],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-/// Checks whether the pet has crossed the evolution threshold and, if so,
-/// evolves it within the already-open transaction.
+/// Checks whether the pet has crossed an evolution threshold and, if so,
+/// evolves it within the already-open transaction. Returns true on any
+/// transition (starter→hatchling or hatchling→stage1).
 fn check_and_evolve(conn: &Connection, pet_id: i64) -> Result<bool, DbError> {
     let (stage, growth_resources): (String, i64) = conn.query_row(
         "SELECT stage, growth_resources FROM pet WHERE id = ?1",
@@ -783,9 +856,75 @@ fn check_and_evolve(conn: &Connection, pet_id: i64) -> Result<bool, DbError> {
              VALUES (?1, 'evolved_to_hatchling', 0, NULL)",
             params![pet_id],
         )?;
-        Ok(true)
+        return Ok(true);
+    }
+
+    if stage == "hatchling" && growth_resources >= HATCHLING_TO_STAGE1_THRESHOLD {
+        // Personality lock-in happens here, per § The Three Personalities:
+        // "Personality is locked after first evolution."
+        let personality = compute_personality_lean(conn, pet_id)?;
+        conn.execute(
+            "UPDATE pet SET stage = 'stage1', personality = ?1 WHERE id = ?2",
+            params![personality, pet_id],
+        )?;
+        conn.execute(
+            "INSERT INTO growth_events (pet_id, source, points_awarded, related_id)
+             VALUES (?1, 'evolved_to_stage1', 0, NULL)",
+            params![pet_id],
+        )?;
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+/// Computes which of the two v1 personalities the user's behavior leans toward.
+/// Scored from `behavioral_signals` on demand — never maintained as a running
+/// counter. Design maps:
+///   - Sustained focus sessions → powerful (depth)
+///   - Gentle presence and care → cuddly (warmth)
+///
+/// Task completion itself is deliberately NOT scored — in v1 (no eccentric
+/// personality), rewarding every task toward one axis would make almost every
+/// pet end up there. Tasks still feed growth; they just don't pick the lean.
+///
+/// Ties (or an entirely new pet with no signals) resolve to cuddly — the
+/// warm default matches the product's tone of unconditional care.
+pub fn compute_personality_lean(
+    conn: &Connection,
+    pet_id: i64,
+) -> Result<String, DbError> {
+    // Powerful score: focus-minutes-completed divided into 15-minute units.
+    // Using the raw value stored on 'focus_completed' signals (duration_minutes).
+    let powerful_score: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(value), 0.0) / 15.0
+         FROM behavioral_signals
+         WHERE pet_id = ?1 AND signal_type = 'focus_completed' AND value IS NOT NULL",
+        params![pet_id],
+        |row| row.get(0),
+    )?;
+
+    // Cuddly score: weighted sum over presence/care signals. Weights chosen so
+    // an active cuddly user accumulates comparable score to an active focus
+    // user during demos; tuned by feel, tunable with playtesting.
+    let cuddly_score: f64 = conn.query_row(
+        "SELECT
+            1.0 * (SELECT COUNT(*) FROM behavioral_signals
+                   WHERE pet_id = ?1 AND signal_type = 'gentle_care')
+          + 0.5 * (SELECT COUNT(*) FROM behavioral_signals
+                   WHERE pet_id = ?1 AND signal_type = 'session_open')
+          + 0.3 * (SELECT COUNT(*) FROM behavioral_signals
+                   WHERE pet_id = ?1 AND signal_type = 'task_created')
+          + 0.3 * (SELECT COUNT(*) FROM behavioral_signals
+                   WHERE pet_id = ?1 AND signal_type = 'task_edited')",
+        params![pet_id],
+        |row| row.get(0),
+    )?;
+
+    if powerful_score > cuddly_score {
+        Ok("powerful".to_string())
     } else {
-        Ok(false)
+        Ok("cuddly".to_string())
     }
 }
 

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PetState } from '../pet/types';
-import { debugResetPet, debugAddGrowth, evolveToHatchling } from '../lib/tauri';
+import {
+  debugResetPet,
+  debugAddGrowth,
+  debugForceEvolveStage1,
+  evolveToHatchling,
+} from '../lib/tauri';
 
 interface Props {
   onPetStateUpdate: (pet: PetState) => void;
@@ -55,17 +60,32 @@ export default function DebugPanel({ onPetStateUpdate, onEvolution }: Props) {
     [onPetStateUpdate, onEvolution],
   );
 
-  const handleForceEvolve = useCallback(() => {
+  const handleForceHatch = useCallback(() => {
     evolveToHatchling()
       .then((pet) => {
         onPetStateUpdate(pet);
-        setLastAction('force evolve');
+        setLastAction('force → hatchling');
         onEvolution();
       })
       .catch((err: unknown) => {
         console.error('force evolve failed:', err);
       });
   }, [onPetStateUpdate, onEvolution]);
+
+  const handleForceStage1 = useCallback(
+    (personality: 'cuddly' | 'powerful') => {
+      debugForceEvolveStage1(personality)
+        .then((pet) => {
+          onPetStateUpdate(pet);
+          setLastAction(`force → stage1 ${personality}`);
+          onEvolution();
+        })
+        .catch((err: unknown) => {
+          console.error('force stage1 failed:', err);
+        });
+    },
+    [onPetStateUpdate, onEvolution],
+  );
 
   if (!visible) return null;
 
@@ -85,7 +105,9 @@ export default function DebugPanel({ onPetStateUpdate, onEvolution }: Props) {
         <button onClick={handleReset}>reset to starter</button>
         <button onClick={() => handleAddGrowth(1)}>+1 growth</button>
         <button onClick={() => handleAddGrowth(5)}>+5 growth</button>
-        <button onClick={handleForceEvolve}>force evolve</button>
+        <button onClick={handleForceHatch}>force → hatchling</button>
+        <button onClick={() => handleForceStage1('cuddly')}>force → stage1 cuddly</button>
+        <button onClick={() => handleForceStage1('powerful')}>force → stage1 powerful</button>
       </div>
       {lastAction && <div className="debug-panel-status">{lastAction}</div>}
       <div className="debug-panel-hint">⌘⇧D to close</div>

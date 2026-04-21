@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Placeholder art. Real powerful 1st-evolution design will be done by the
+  founder's artist friends pre-launch. This silhouette is intentionally
+  angular, alert, and cooler-toned so it reads as distinctly different
+  from the cuddly form at a glance during demos. Aggressive in the world,
+  never toward the user (design doc § The Three Personalities) — the
+  posture here is poised/confident, not threatening.
+
+  Characteristics: pointed ears, diamond-set eyes with sharp inner detail,
+  tapered body silhouette, a small blaze mark on the chest. Cool slate-
+  purple palette with warm accent.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="powerfulBody" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#8a7dbf" />
+      <stop offset="70%" stop-color="#574870" />
+      <stop offset="100%" stop-color="#32273f" />
+    </radialGradient>
+    <linearGradient id="powerfulBlaze" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffc36b" />
+      <stop offset="100%" stop-color="#ff7a33" />
+    </linearGradient>
+  </defs>
+
+  <!-- pointed ears (angular triangles) -->
+  <path d="M 58 54 L 76 78 L 62 82 Z" fill="#3d3250" />
+  <path d="M 142 54 L 124 78 L 138 82 Z" fill="#3d3250" />
+
+  <!-- inner ear lines -->
+  <path d="M 62 62 L 72 78" stroke="#8a7dbf" stroke-width="1.5" fill="none" />
+  <path d="M 138 62 L 128 78" stroke="#8a7dbf" stroke-width="1.5" fill="none" />
+
+  <!-- tapered body: narrower at top, wider at base, slightly angular -->
+  <path d="M 100 58
+           C 138 66, 158 100, 148 146
+           L 148 160
+           C 130 174, 70 174, 52 160
+           L 52 146
+           C 42 100, 62 66, 100 58 Z"
+        fill="url(#powerfulBody)" />
+
+  <!-- chest blaze mark (warm accent that reads at a glance) -->
+  <path d="M 100 108 L 108 128 L 100 150 L 92 128 Z"
+        fill="url(#powerfulBlaze)" opacity="0.9" />
+
+  <!-- alert diamond-set eyes -->
+  <path d="M 72 102 L 84 98 L 90 104 L 78 108 Z" fill="#fff4d6" />
+  <path d="M 110 104 L 116 98 L 128 102 L 122 108 Z" fill="#fff4d6" />
+
+  <!-- eye pupils — vertical slit for alertness -->
+  <ellipse cx="81" cy="103" rx="1.8" ry="4" fill="#1a0f25" />
+  <ellipse cx="119" cy="103" rx="1.8" ry="4" fill="#1a0f25" />
+
+  <!-- subtle mouth line -->
+  <path d="M 96 138 L 100 142 L 104 138" stroke="#1a0f25"
+        stroke-width="1.8" fill="none" stroke-linecap="round" />
+</svg>

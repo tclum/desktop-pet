@@ -104,6 +104,12 @@ export function debugAddGrowth(delta: number): Promise<DebugAddGrowthResult> {
   return invoke('debug_add_growth', { delta });
 }
 
+export function debugForceEvolveStage1(
+  personality: 'cuddly' | 'powerful',
+): Promise<PetState> {
+  return invoke('debug_force_evolve_stage1', { personality });
+}
+
 export type GreetingTier = 'none' | 'small' | 'medium' | 'large';
 
 export function checkGreeting(): Promise<GreetingTier> {
