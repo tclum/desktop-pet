@@ -83,7 +83,12 @@ interface EvolutionState {
   toStage: PetStage;
 }
 
-export default function PetView({ petState, onPetStateUpdate, onRegisterReactionTrigger }: Props) {
+export default function PetView({
+  petState,
+  onPetStateUpdate,
+  onRegisterReactionTrigger,
+  onRegisterGreetingTrigger,
+}: Props) {
   // The stage currently rendered as the "current" sprite. Lags behind
   // petState.stage during a transition so we know what we're fading from.
   const [displayStage, setDisplayStage] = useState<PetStage>(petState.stage);

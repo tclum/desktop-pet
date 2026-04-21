@@ -69,7 +69,13 @@ export default function FocusTimer({ onPointsEarned, onEvolution }: Props) {
         rafIdRef.current = null;
         const sid = sessionIdRef.current;
         if (sid !== null) {
-          const msg = COMPLETION_MESSAGES[completionIndexRef.current % COMPLETION_MESSAGES.length];
+          // The modulo guarantees the index is in range, but under
+          // noUncheckedIndexedAccess the lookup type is string | undefined;
+          // fall back to an empty string to keep the state type narrow.
+          const msg =
+            COMPLETION_MESSAGES[
+              completionIndexRef.current % COMPLETION_MESSAGES.length
+            ] ?? '';
           completionIndexRef.current += 1;
           setCompletionMessage(msg);
           setPhase('done');
