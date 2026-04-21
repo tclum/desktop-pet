@@ -16,6 +16,29 @@ body,
   user-select: none;
 }
 
+/* Warm focus ring to replace the default browser blue that clashes on the
+   dark transparent window. :focus-visible ensures it only appears for
+   keyboard navigation, not mouse clicks. Applies broadly so every focusable
+   element gets consistent treatment. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(255, 220, 160, 0.75);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Inputs carry the focus cue via border-color instead of outline, since they
+   already have a visible border that the outline would double up on. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: rgba(255, 220, 160, 0.75);
+  box-shadow: 0 0 0 1px rgba(255, 220, 160, 0.35);
+}
+
 .pet-window {
   position: relative;
   width: 100%;
