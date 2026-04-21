@@ -28,6 +28,19 @@ export default function DebugPanel({ onPetStateUpdate, onEvolution }: Props) {
       if (mod && e.shiftKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         setVisible((v) => !v);
+        return;
+      }
+      // Escape closes the panel if it's open — standard modal affordance.
+      // Only acts when visible so Escape doesn't disrupt text inputs when
+      // the panel is hidden.
+      if (e.key === 'Escape') {
+        setVisible((v) => {
+          if (v) {
+            e.preventDefault();
+            return false;
+          }
+          return v;
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
