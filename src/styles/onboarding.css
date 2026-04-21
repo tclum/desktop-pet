@@ -149,3 +149,55 @@
   0%, 100% { transform: scale(0.98); }
   50%      { transform: scale(1.02); }
 }
+
+/* ---------------------------------------------------------------------------
+   Learn more — scrollable sections. All copy here is structural placeholder;
+   see TODO(copy) markers in LearnMore.tsx for the text that needs a real pass.
+--------------------------------------------------------------------------- */
+
+.onboarding-learn-more {
+  padding-top: 20px;
+}
+
+.onboarding-learn-more-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  padding: 0 4px 12px;
+}
+
+.onboarding-learn-more-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+
+.onboarding-learn-more-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.onboarding-learn-more .onboarding-title {
+  text-align: center;
+  margin: 0 0 16px;
+}
+
+.learn-more-section {
+  margin: 0 0 18px;
+  font-family: system-ui, sans-serif;
+}
+
+.learn-more-heading {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.80);
+  margin: 0 0 6px;
+}
+
+.learn-more-body {
+  font-size: 12px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.55;
+  margin: 0;
+}
