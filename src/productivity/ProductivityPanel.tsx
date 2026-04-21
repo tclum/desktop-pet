@@ -1,21 +1,25 @@
 import { useState, useCallback } from 'react';
 import TodoList from './TodoList';
 import FocusTimer from './FocusTimer';
+import type { ReactionKind } from '../pet/PetView';
 
 type Tab = 'tasks' | 'focus';
 
 interface Props {
-  onPointsEarned: (points: number) => void;
+  onPointsEarned: (points: number, kind: ReactionKind) => void;
   onEvolution: () => void;
 }
 
 export default function ProductivityPanel({ onPointsEarned, onEvolution }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
-  const handlePointsEarned = useCallback(
-    (points: number) => {
-      onPointsEarned(points);
-    },
+  const handleTaskPoints = useCallback(
+    (points: number) => onPointsEarned(points, 'task'),
+    [onPointsEarned],
+  );
+
+  const handleFocusPoints = useCallback(
+    (points: number) => onPointsEarned(points, 'focus'),
     [onPointsEarned],
   );
 
@@ -42,10 +46,10 @@ export default function ProductivityPanel({ onPointsEarned, onEvolution }: Props
 
       <div className="productivity-content">
         <div className={activeTab === 'tasks' ? 'tab-pane' : 'tab-pane tab-pane--hidden'} role="tabpanel">
-          <TodoList onPointsEarned={handlePointsEarned} onEvolution={onEvolution} />
+          <TodoList onPointsEarned={handleTaskPoints} onEvolution={onEvolution} />
         </div>
         <div className={activeTab === 'focus' ? 'tab-pane' : 'tab-pane tab-pane--hidden'} role="tabpanel">
-          <FocusTimer onPointsEarned={handlePointsEarned} onEvolution={onEvolution} />
+          <FocusTimer onPointsEarned={handleFocusPoints} onEvolution={onEvolution} />
         </div>
       </div>
     </div>

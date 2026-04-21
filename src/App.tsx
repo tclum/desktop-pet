@@ -9,6 +9,7 @@ import PetView from './pet/PetView';
 import ProductivityPanel from './productivity/ProductivityPanel';
 import DebugPanel from './debug/DebugPanel';
 import type { PetState } from './pet/types';
+import type { ReactionKind } from './pet/PetView';
 import type { GreetingTier } from './lib/tauri';
 import {
   getPet,
@@ -26,7 +27,7 @@ export default function App() {
   const [petState, setPetState] = useState<PetState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Signals the pet to play its reaction glow when productivity points are earned.
-  const triggerPetReactionRef = useRef<(() => void) | null>(null);
+  const triggerPetReactionRef = useRef<((kind: ReactionKind) => void) | null>(null);
   // Signals the pet to play its tier-specific welcome-back animation.
   const triggerPetGreetingRef = useRef<((tier: GreetingTier) => void) | null>(null);
   // Pending greeting tier, held until PetView registers its trigger — the
@@ -64,9 +65,12 @@ export default function App() {
     setPetState(updated);
   }, []);
 
-  const handleRegisterPetReaction = useCallback((trigger: () => void) => {
-    triggerPetReactionRef.current = trigger;
-  }, []);
+  const handleRegisterPetReaction = useCallback(
+    (trigger: (kind: ReactionKind) => void) => {
+      triggerPetReactionRef.current = trigger;
+    },
+    [],
+  );
 
   const handleRegisterPetGreeting = useCallback(
     (trigger: (tier: GreetingTier) => void) => {
@@ -80,9 +84,12 @@ export default function App() {
     [],
   );
 
-  const handlePointsEarned = useCallback((_points: number) => {
-    triggerPetReactionRef.current?.();
-  }, []);
+  const handlePointsEarned = useCallback(
+    (_points: number, kind: ReactionKind) => {
+      triggerPetReactionRef.current?.(kind);
+    },
+    [],
+  );
 
   // Called when a productivity command returns evolved: true.
   // Re-fetches the pet so PetView detects the stage change and starts the transition.

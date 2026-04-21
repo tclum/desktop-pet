@@ -5,10 +5,12 @@ import { recordPetInteraction } from '../lib/tauri';
 import starterPng from '../assets/pets/starter.png';
 import hatchlingPng from '../assets/pets/hatchling.png';
 
+export type ReactionKind = 'task' | 'focus';
+
 interface Props {
   petState: PetState;
   onPetStateUpdate: (updated: PetState) => void;
-  onRegisterReactionTrigger: (trigger: () => void) => void;
+  onRegisterReactionTrigger: (trigger: (kind: ReactionKind) => void) => void;
   onRegisterGreetingTrigger: (trigger: (tier: GreetingTier) => void) => void;
 }
 
@@ -17,8 +19,14 @@ const IDLE_FRAME_MS = 1000 / 6;   // 6 fps — ambient, low-energy
 const BREATH_PERIOD_MS = 3000;
 const BREATH_AMPLITUDE = 0.04;
 
-// Reaction glow (click / points earned)
-const REACTION_DURATION_MS = 1500;
+// Reaction glow. Two shapes so the pet has a small vocabulary:
+// - task:  fast warm "good!" pulse — quick acknowledgement
+// - focus: slower, deeper, held glow — honouring sustained effort.
+//          A click (which calls recordPetInteraction) reuses 'task' shape.
+const REACTION_TASK_DURATION_MS = 1500;
+const REACTION_FOCUS_DURATION_MS = 2600;
+const REACTION_TASK_PEAK_OPACITY = 0.45;
+const REACTION_FOCUS_PEAK_OPACITY = 0.70;
 
 // Greeting glow — tier-driven "welcome back" on session start.
 // Thresholds match the backend tiers in db::check_greeting. Longer absences
@@ -54,6 +62,13 @@ function greetingParams(tier: GreetingTier): [duration: number, peak: number] {
   }
 }
 
+function reactionParams(kind: ReactionKind): [duration: number, peak: number] {
+  switch (kind) {
+    case 'focus': return [REACTION_FOCUS_DURATION_MS, REACTION_FOCUS_PEAK_OPACITY];
+    default:      return [REACTION_TASK_DURATION_MS, REACTION_TASK_PEAK_OPACITY];
+  }
+}
+
 type EvolutionPhase = 'idle' | 'anticipate' | 'fade_out' | 'peak' | 'fade_in';
 
 interface EvolutionState {
@@ -77,7 +92,7 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
 
   const rafIdRef = useRef<number | null>(null);
   const lastFrameAtRef = useRef(0);
-  const reactionStartedAtRef = useRef<number | null>(null);
+  const reactionRef = useRef<{ startedAt: number; kind: ReactionKind } | null>(null);
   const greetingRef = useRef<{ startedAt: number; tier: GreetingTier } | null>(null);
   const evolutionRef = useRef<EvolutionState>({
     phase: 'idle',
@@ -201,15 +216,17 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
 
       // Reaction glow (independent of evolution state).
       if (reactionGlowRef.current) {
-        const reactionStart = reactionStartedAtRef.current;
-        if (reactionStart !== null) {
-          const elapsed = now - reactionStart;
-          if (elapsed >= REACTION_DURATION_MS) {
-            reactionStartedAtRef.current = null;
+        const reaction = reactionRef.current;
+        if (reaction !== null) {
+          const [duration, peakOpacity] = reactionParams(reaction.kind);
+          const elapsed = now - reaction.startedAt;
+          if (elapsed >= duration) {
+            reactionRef.current = null;
             reactionGlowRef.current.style.opacity = '0';
           } else {
-            const progress = elapsed / REACTION_DURATION_MS;
-            reactionGlowRef.current.style.opacity = (Math.sin(progress * Math.PI) * 0.45).toFixed(4);
+            const progress = elapsed / duration;
+            reactionGlowRef.current.style.opacity =
+              (Math.sin(progress * Math.PI) * peakOpacity).toFixed(4);
           }
         }
       }
@@ -263,8 +280,8 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
   }, [petState.stage]);
 
   useEffect(() => {
-    onRegisterReactionTrigger(() => {
-      reactionStartedAtRef.current = performance.now();
+    onRegisterReactionTrigger((kind: ReactionKind) => {
+      reactionRef.current = { startedAt: performance.now(), kind };
     });
   }, [onRegisterReactionTrigger]);
 
@@ -278,7 +295,8 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
   const handlePetClick = useCallback(() => {
     // Only react to clicks outside a transition.
     if (evolutionRef.current.phase !== 'idle') return;
-    reactionStartedAtRef.current = performance.now();
+    // Click reactions reuse the 'task'-shaped pulse — quick, warm, friendly.
+    reactionRef.current = { startedAt: performance.now(), kind: 'task' };
     recordPetInteraction(petStateRef.current.id)
       .then((updated) => onPetStateUpdateRef.current(updated))
       .catch((err: unknown) => {
