@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { PetState } from '../pet/types';
 import {
   debugResetPet,
+  debugResetOnboarding,
   debugAddGrowth,
   debugForceEvolveStage1,
   evolveToHatchling,
@@ -100,6 +101,17 @@ export default function DebugPanel({ onPetStateUpdate, onEvolution }: Props) {
     [onPetStateUpdate, onEvolution],
   );
 
+  const handleResetOnboarding = useCallback(() => {
+    debugResetOnboarding()
+      .then((pet) => {
+        onPetStateUpdate(pet);
+        setLastAction('reset onboarding');
+      })
+      .catch((err: unknown) => {
+        console.error('reset onboarding failed:', err);
+      });
+  }, [onPetStateUpdate]);
+
   if (!visible) return null;
 
   return (
@@ -121,6 +133,7 @@ export default function DebugPanel({ onPetStateUpdate, onEvolution }: Props) {
         <button onClick={handleForceHatch}>force → hatchling</button>
         <button onClick={() => handleForceStage1('cuddly')}>force → stage1 cuddly</button>
         <button onClick={() => handleForceStage1('powerful')}>force → stage1 powerful</button>
+        <button onClick={handleResetOnboarding}>reset onboarding</button>
       </div>
       {lastAction && <div className="debug-panel-status">{lastAction}</div>}
       <div className="debug-panel-hint">⌘⇧D to close</div>
