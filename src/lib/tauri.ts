@@ -110,7 +110,7 @@ export function debugForceEvolveStage1(
   return invoke('debug_force_evolve_stage1', { personality });
 }
 
-export type GreetingTier = 'none' | 'small' | 'medium' | 'large';
+export type GreetingTier = 'none' | 'small' | 'medium' | 'large' | 'vacation';
 
 export function checkGreeting(): Promise<GreetingTier> {
   return invoke('check_greeting');

@@ -949,6 +949,9 @@ pub enum GreetingTier {
     Small,
     Medium,
     Large,
+    /// Vacation-scale return (>3 days). Visually distinct from Large — the
+    /// pet perks up in recognition, not just a longer welcome.
+    Vacation,
 }
 
 pub fn check_greeting(conn: &mut Connection) -> Result<GreetingTier, DbError> {
@@ -978,8 +981,10 @@ pub fn check_greeting(conn: &mut Connection) -> Result<GreetingTier, DbError> {
         GreetingTier::Small
     } else if seconds_since_interaction < GREETING_LARGE_SECONDS {
         GreetingTier::Medium
-    } else {
+    } else if seconds_since_interaction < VACATION_THRESHOLD_SECONDS {
         GreetingTier::Large
+    } else {
+        GreetingTier::Vacation
     };
 
     if !matches!(tier, GreetingTier::None) {

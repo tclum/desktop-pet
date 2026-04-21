@@ -51,6 +51,26 @@
   pointer-events: none;
 }
 
+/* Bond warmth — faint always-on wash behind the pet. Opacity is driven from
+   accumulated bond via bondWarmthOpacity(), capped at 0.18. Slower transition
+   than the other glows so changes (e.g. after a task completion bumping bond)
+   feel like the space warming, not a notification pulse. */
+.pet-bond-warmth {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 220, 160, 0.9) 0%,
+    rgba(255, 200, 130, 0.55) 45%,
+    rgba(255, 180, 110, 0.15) 75%,
+    transparent 95%
+  );
+  pointer-events: none;
+  transition: opacity 1600ms ease-out;
+  z-index: -1;
+}
+
 /* Greeting glow — wider, softer, warmer wash for "welcome back" moments */
 .pet-greeting-glow {
   position: absolute;

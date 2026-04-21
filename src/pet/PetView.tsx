@@ -38,12 +38,25 @@ const RESTING_THRESHOLD_SECONDS = 24 * 60 * 60;
 // Greeting glow — tier-driven "welcome back" on session start.
 // Thresholds match the backend tiers in db::check_greeting. Longer absences
 // get a gentler, longer wash — never loud, never guilt-laced.
+// Vacation is visually distinct: same warm wash as large, PLUS a gentle
+// scale-bump on the pet at the glow's peak — the pet perks up in recognition.
 const GREETING_SMALL_DURATION_MS = 1800;
 const GREETING_MEDIUM_DURATION_MS = 3200;
 const GREETING_LARGE_DURATION_MS = 4500;
+const GREETING_VACATION_DURATION_MS = 5200;
 const GREETING_SMALL_PEAK_OPACITY = 0.35;
 const GREETING_MEDIUM_PEAK_OPACITY = 0.55;
 const GREETING_LARGE_PEAK_OPACITY = 0.75;
+const GREETING_VACATION_PEAK_OPACITY = 0.85;
+const GREETING_VACATION_SCALE_BUMP = 0.08;   // extra scale on top of breathing
+
+// Bond warmth — a faint always-on glow behind the pet that deepens on a log
+// curve as bond accumulates. The goal: the space around the pet feels cozier
+// over months of use without ever showing a number or bar. Asymptotic cap
+// means the visual can only reward, not regress, even if implementation
+// changes later let bond dip for any reason.
+const BOND_WARMTH_CAP = 0.18;
+const BOND_WARMTH_SLOPE = 0.05;
 
 // Evolution transition timing (ms from transition start).
 // Two shapes: a default (starter → hatchling) and an extended reveal for
@@ -85,11 +98,22 @@ function spriteUrl(form: PetForm): string {
 
 function greetingParams(tier: GreetingTier): [duration: number, peak: number] {
   switch (tier) {
-    case 'small':  return [GREETING_SMALL_DURATION_MS, GREETING_SMALL_PEAK_OPACITY];
-    case 'medium': return [GREETING_MEDIUM_DURATION_MS, GREETING_MEDIUM_PEAK_OPACITY];
-    case 'large':  return [GREETING_LARGE_DURATION_MS, GREETING_LARGE_PEAK_OPACITY];
-    default:       return [0, 0];
+    case 'small':    return [GREETING_SMALL_DURATION_MS, GREETING_SMALL_PEAK_OPACITY];
+    case 'medium':   return [GREETING_MEDIUM_DURATION_MS, GREETING_MEDIUM_PEAK_OPACITY];
+    case 'large':    return [GREETING_LARGE_DURATION_MS, GREETING_LARGE_PEAK_OPACITY];
+    case 'vacation': return [GREETING_VACATION_DURATION_MS, GREETING_VACATION_PEAK_OPACITY];
+    default:         return [0, 0];
   }
+}
+
+/**
+ * Bond-to-warmth-opacity mapping. Log curve so early bonds don't overshoot
+ * and long bonds still have headroom. Cap prevents the glow from ever
+ * becoming loud.
+ */
+function bondWarmthOpacity(bond: number): number {
+  if (bond <= 0) return 0;
+  return Math.min(BOND_WARMTH_CAP, BOND_WARMTH_SLOPE * Math.log10(bond + 1));
 }
 
 function reactionParams(kind: ReactionKind): [duration: number, peak: number] {
@@ -168,7 +192,20 @@ export default function PetView({
       if (evo.phase === 'idle') {
         // Normal breathing — only runs when no transition is active.
         if (breathWrapperRef.current) {
-          const scale = 1 + BREATH_AMPLITUDE * Math.sin((now / BREATH_PERIOD_MS) * Math.PI * 2);
+          const breathScale =
+            1 + BREATH_AMPLITUDE * Math.sin((now / BREATH_PERIOD_MS) * Math.PI * 2);
+          // Vacation greeting adds a one-shot scale-bump on top of breathing
+          // so the pet visibly "perks up" during the welcome — the distinct
+          // signal that this is a return, not just another session.
+          let bumpScale = 0;
+          const greeting = greetingRef.current;
+          if (greeting !== null && greeting.tier === 'vacation') {
+            const progress = (now - greeting.startedAt) / GREETING_VACATION_DURATION_MS;
+            if (progress >= 0 && progress <= 1) {
+              bumpScale = GREETING_VACATION_SCALE_BUMP * Math.sin(progress * Math.PI);
+            }
+          }
+          const scale = breathScale + bumpScale;
           breathWrapperRef.current.style.transform = `scale(${scale.toFixed(4)})`;
         }
       } else {
@@ -366,6 +403,10 @@ export default function PetView({
     petState.seconds_since_last_interaction >= RESTING_THRESHOLD_SECONDS &&
     evolutionRef.current.phase === 'idle';
 
+  // Faint always-on warmth behind the pet, scaling with accumulated bond.
+  // Explicitly NOT a progress bar — the value is never displayed, only felt.
+  const bondWarmth = bondWarmthOpacity(petState.bond);
+
   return (
     <div
       className={`pet-view${isResting ? ' pet-view--resting' : ''}`}
@@ -373,6 +414,15 @@ export default function PetView({
       role="button"
       aria-label="Your pet"
     >
+      {/* Bond warmth — faint always-on glow behind the pet, deepens very
+          slowly with accumulated bond. Rendered behind the sprites so the
+          silhouette always sits clearly on top. */}
+      <div
+        className="pet-bond-warmth"
+        style={{ opacity: bondWarmth.toFixed(4) }}
+        aria-hidden="true"
+      />
+
       {/* Breathing wrapper — scale transform applied here so both sprites move together */}
       <div ref={breathWrapperRef} className="pet-breath-wrapper">
         {/* Current (from) sprite — fades out during transition */}
