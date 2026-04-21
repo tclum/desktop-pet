@@ -28,6 +28,11 @@ const REACTION_FOCUS_DURATION_MS = 2600;
 const REACTION_TASK_PEAK_OPACITY = 0.45;
 const REACTION_FOCUS_PEAK_OPACITY = 0.70;
 
+// Resting-state threshold — after this long without interaction, the pet
+// looks slightly quieter (subtle desaturation). Not punishing; just "sleeping."
+// Clears instantly when the user interacts and last_interaction_at resets.
+const RESTING_THRESHOLD_SECONDS = 24 * 60 * 60;
+
 // Greeting glow — tier-driven "welcome back" on session start.
 // Thresholds match the backend tiers in db::check_greeting. Longer absences
 // get a gentler, longer wash — never loud, never guilt-laced.
@@ -304,8 +309,17 @@ export default function PetView({ petState, onPetStateUpdate, onRegisterReaction
       });
   }, []);
 
+  const isResting =
+    petState.seconds_since_last_interaction >= RESTING_THRESHOLD_SECONDS &&
+    evolutionRef.current.phase === 'idle';
+
   return (
-    <div className="pet-view" onClick={handlePetClick} role="button" aria-label="Your pet">
+    <div
+      className={`pet-view${isResting ? ' pet-view--resting' : ''}`}
+      onClick={handlePetClick}
+      role="button"
+      aria-label="Your pet"
+    >
       {/* Breathing wrapper — scale transform applied here so both sprites move together */}
       <div ref={breathWrapperRef} className="pet-breath-wrapper">
         {/* Current (from) sprite — fades out during transition */}

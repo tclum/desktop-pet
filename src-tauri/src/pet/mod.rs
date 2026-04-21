@@ -12,6 +12,8 @@ pub struct PetStateDto {
     pub personality: Option<String>,
     pub last_interaction_at: String,
     pub seconds_since_last_interaction: i64,
+    /// Monotonically non-decreasing. Grows from interactions, never shrinks.
+    pub bond: i64,
 }
 
 impl From<PetRow> for PetStateDto {
@@ -23,6 +25,7 @@ impl From<PetRow> for PetStateDto {
             personality: row.personality,
             last_interaction_at: row.last_interaction_at,
             seconds_since_last_interaction: row.seconds_since_last_interaction,
+            bond: row.bond,
         }
     }
 }

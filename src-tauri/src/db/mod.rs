@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::path::Path;
 use thiserror::Error;
 
-const SCHEMA_TARGET_VERSION: i64 = 5;
+const SCHEMA_TARGET_VERSION: i64 = 6;
 
 // DEMO: starter → hatchling at 5 growth resources. Production should be 20.
 // See "The Point / Resource Economy" in desktop-pet-design.md.
@@ -92,6 +92,9 @@ fn apply_migrations(conn: &Connection) -> Result<(), DbError> {
     }
     if current < 5 {
         migrate_4_to_5(conn)?;
+    }
+    if current < 6 {
+        migrate_5_to_6(conn)?;
     }
 
     Ok(())
@@ -233,6 +236,22 @@ fn migrate_4_to_5(conn: &Connection) -> Result<(), DbError> {
     Ok(())
 }
 
+fn migrate_5_to_6(conn: &Connection) -> Result<(), DbError> {
+    // Bond is accumulation-only: it grows from presence and care, never
+    // shrinks, never punishes absence. Seeding existing pets at 0 is correct —
+    // bond starts fresh from the moment we start counting.
+    conn.execute_batch(
+        "BEGIN;
+
+        ALTER TABLE pet ADD COLUMN bond INTEGER NOT NULL DEFAULT 0;
+
+        UPDATE schema_version SET version = 6;
+
+        COMMIT;",
+    )?;
+    Ok(())
+}
+
 /// Creates a starter pet on first launch. Logs a warning if multiple rows exist
 /// (shouldn't happen, but handled gracefully per v1 spec).
 fn ensure_starter_pet(conn: &Connection) -> Result<(), DbError> {
@@ -265,6 +284,7 @@ pub struct PetRow {
     pub personality: Option<String>,
     pub last_interaction_at: String,
     pub seconds_since_last_interaction: i64,
+    pub bond: i64,
 }
 
 pub fn get_current_pet_id(conn: &Connection) -> Result<i64, DbError> {
@@ -284,7 +304,8 @@ pub fn load_pet(conn: &Connection) -> Result<PetRow, DbError> {
              stage,
              personality,
              last_interaction_at,
-             CAST((julianday('now') - julianday(last_interaction_at)) * 86400 AS INTEGER)
+             CAST((julianday('now') - julianday(last_interaction_at)) * 86400 AS INTEGER),
+             bond
          FROM pet
          ORDER BY created_at DESC
          LIMIT 1",
@@ -297,6 +318,7 @@ pub fn load_pet(conn: &Connection) -> Result<PetRow, DbError> {
                 personality: row.get(3)?,
                 last_interaction_at: row.get(4)?,
                 seconds_since_last_interaction: row.get(5)?,
+                bond: row.get(6)?,
             })
         },
     )?;
@@ -319,7 +341,10 @@ pub fn record_interaction_and_reload(
         params![pet_id],
     )?;
     tx.execute(
-        "UPDATE pet SET last_interaction_at = datetime('now') WHERE id = ?1",
+        "UPDATE pet
+         SET last_interaction_at = datetime('now'),
+             bond = bond + 1
+         WHERE id = ?1",
         params![pet_id],
     )?;
     tx.commit()?;
@@ -551,8 +576,13 @@ pub fn complete_task(
          VALUES (?1, 'task_completed', ?2, ?3)",
         params![pet_id, final_points, task_id],
     )?;
+    // Bond grows from showing up and doing the things you said you'd do,
+    // independent of how many points were awarded by the daily cap.
     tx.execute(
-        "UPDATE pet SET growth_resources = growth_resources + ?1 WHERE id = ?2",
+        "UPDATE pet
+         SET growth_resources = growth_resources + ?1,
+             bond = bond + 1
+         WHERE id = ?2",
         params![final_points, pet_id],
     )?;
     tx.execute(
@@ -668,9 +698,16 @@ pub fn complete_focus_session(
          VALUES (?1, 'focus_completed', ?2, ?3)",
         params![pet_id, final_points, session_id],
     )?;
+    // Focus sessions contribute more bond than tasks: sustained presence and
+    // effort are what the relationship is built on. Capped so marathon sessions
+    // don't distort the accumulation curve.
+    let bond_from_focus = (duration_minutes / 15).clamp(1, 8);
     tx.execute(
-        "UPDATE pet SET growth_resources = growth_resources + ?1 WHERE id = ?2",
-        params![final_points, pet_id],
+        "UPDATE pet
+         SET growth_resources = growth_resources + ?1,
+             bond = bond + ?2
+         WHERE id = ?3",
+        params![final_points, bond_from_focus, pet_id],
     )?;
     tx.execute(
         "INSERT INTO behavioral_signals (pet_id, signal_type, value)
@@ -764,6 +801,7 @@ const GREETING_MIN_GAP_SECONDS: i64 = 30 * 60;           // 30 min since last gr
 const GREETING_SMALL_SECONDS: i64 = 30 * 60;             // 30 min
 const GREETING_MEDIUM_SECONDS: i64 = 4 * 60 * 60;        // 4 h
 const GREETING_LARGE_SECONDS: i64 = 24 * 60 * 60;        // 24 h
+const VACATION_THRESHOLD_SECONDS: i64 = 3 * 24 * 60 * 60; // 3 days — logged as a distinct signal
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -817,6 +855,17 @@ pub fn check_greeting(conn: &mut Connection) -> Result<GreetingTier, DbError> {
              VALUES (?1, 'greeted', NULL)",
             params![pet.id],
         )?;
+        // Vacation-scale absences get a distinct signal for future analysis
+        // (e.g., surfacing "welcome back" specifics, avoiding any follow-up
+        // catch-up nagging). Bond / growth remain untouched — per non-negotiable
+        // nothing degrades from absence.
+        if seconds_since_interaction >= VACATION_THRESHOLD_SECONDS {
+            tx.execute(
+                "INSERT INTO behavioral_signals (pet_id, signal_type, value)
+                 VALUES (?1, 'vacation_return', ?2)",
+                params![pet.id, seconds_since_interaction as f64],
+            )?;
+        }
         tx.commit()?;
     }
 
@@ -845,6 +894,7 @@ pub fn debug_reset_pet(conn: &mut Connection, pet_id: i64) -> Result<(), DbError
              stage = 'starter',
              personality = NULL,
              growth_resources = 0,
+             bond = 0,
              last_interaction_at = datetime('now')
          WHERE id = ?1",
         params![pet_id],

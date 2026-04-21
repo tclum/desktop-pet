@@ -9,4 +9,6 @@ export interface PetState {
   last_interaction_at: string;
   /** Computed from timestamps on the Rust side — never a running counter. */
   seconds_since_last_interaction: number;
+  /** Monotonically non-decreasing. Grows from interactions, never shrinks. */
+  bond: number;
 }

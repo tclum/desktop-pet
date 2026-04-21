@@ -22,6 +22,14 @@
   will-change: transform, opacity;
   user-select: none;
   -webkit-user-drag: none;
+  transition: filter 800ms ease;
+}
+
+/* Resting state — slight desaturation for long absences. Deliberately gentle,
+   never punitive. Clears instantly when the user interacts (class is removed
+   on the next render after last_interaction_at resets). */
+.pet-view--resting .pet-sprite {
+  filter: saturate(0.75) brightness(0.95);
 }
 
 /* next sprite sits on top so its fade-in is unobstructed */
