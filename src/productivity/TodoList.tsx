@@ -393,9 +393,22 @@ function SortableTaskItem({
       ) : (
         <span
           className="todo-title todo-title--editable"
+          role="button"
+          tabIndex={0}
+          aria-label={`Edit task "${task.title}"`}
           onClick={(e) => {
             e.stopPropagation();
             onStartEdit();
+          }}
+          onKeyDown={(e) => {
+            // Keyboard parity with the pointer click — Enter or Space
+            // activates the inline edit. stopPropagation prevents the
+            // dnd-kit keyboard sensor from interpreting Space as drag start.
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onStartEdit();
+            }
           }}
         >
           {task.title}
