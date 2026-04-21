@@ -207,7 +207,19 @@ export default function FocusTimer({ onPointsEarned, onEvolution }: Props) {
   return (
     <div className="focus-timer">
       {phase === 'done' ? (
-        <div className="focus-done" onClick={handleDismissDone} role="button" aria-label="Dismiss">
+        <div
+          className="focus-done"
+          onClick={handleDismissDone}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+              e.preventDefault();
+              handleDismissDone();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={`${completionMessage} Press any key to dismiss.`}
+        >
           <span className="focus-done-message">{completionMessage}</span>
         </div>
       ) : (
