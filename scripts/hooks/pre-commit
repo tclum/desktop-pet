@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Pre-commit hook: typecheck the frontend and cargo-check the backend, but
+# only when the relevant files are part of the staged diff so unrelated
+# commits (docs, session notes) don't pay the latency.
+#
+# Install via scripts/install-hooks.sh (or symlink this file into
+# .git/hooks/pre-commit manually). Runs from the repo root.
+
+set -e
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+needs_tsc=0
+needs_cargo=0
+
+while IFS= read -r file; do
+  case "$file" in
+    src/*|tsconfig.json|package.json|package-lock.json|vite.config.*)
+      case "$file" in
+        *.ts|*.tsx|*.json|vite.config.*) needs_tsc=1 ;;
+      esac
+      ;;
+    src-tauri/*)
+      case "$file" in
+        *.rs|src-tauri/Cargo.toml|src-tauri/Cargo.lock) needs_cargo=1 ;;
+      esac
+      ;;
+  esac
+done <<< "$staged"
+
+if [ "$needs_tsc" = 1 ]; then
+  echo "pre-commit: running tsc --noEmit"
+  if ! npx tsc --noEmit; then
+    echo "pre-commit: tsc --noEmit failed. Fix the type errors and re-stage." >&2
+    exit 1
+  fi
+fi
+
+if [ "$needs_cargo" = 1 ]; then
+  echo "pre-commit: running cargo check"
+  if ! cargo check --manifest-path src-tauri/Cargo.toml --quiet; then
+    echo "pre-commit: cargo check failed. Fix the compilation errors and re-stage." >&2
+    exit 1
+  fi
+fi
+
+exit 0
