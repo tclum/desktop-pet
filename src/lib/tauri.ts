@@ -46,6 +46,14 @@ export function deleteTask(taskId: number): Promise<void> {
   return invoke('delete_task', { taskId });
 }
 
+export function updateTask(taskId: number, newTitle: string): Promise<void> {
+  return invoke('update_task', { taskId, newTitle });
+}
+
+export function reorderTasks(orderedTaskIds: number[]): Promise<void> {
+  return invoke('reorder_tasks', { orderedTaskIds });
+}
+
 // ---------------------------------------------------------------------------
 // Focus session commands
 // ---------------------------------------------------------------------------

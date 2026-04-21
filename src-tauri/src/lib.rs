@@ -53,6 +53,8 @@ pub fn run() {
             get_tasks,
             create_task,
             complete_task,
+            update_task,
+            reorder_tasks,
             delete_task,
             start_focus_session,
             complete_focus_session,
@@ -146,6 +148,7 @@ pub struct TaskDto {
     pub title: String,
     pub created_at: String,
     pub completed_at: Option<String>,
+    pub display_order: i64,
 }
 
 impl From<db::TaskRow> for TaskDto {
@@ -155,6 +158,7 @@ impl From<db::TaskRow> for TaskDto {
             title: row.title,
             created_at: row.created_at,
             completed_at: row.completed_at,
+            display_order: row.display_order,
         }
     }
 }
@@ -205,6 +209,29 @@ fn delete_task(
 ) -> Result<(), String> {
     let conn = state.lock().map_err(|e| e.to_string())?;
     db::soft_delete_task(&conn, task_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_task(
+    state: tauri::State<'_, Mutex<Connection>>,
+    task_id: i64,
+    new_title: String,
+) -> Result<(), String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::update_task_title(&mut conn, task_id, pet_id, &new_title)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reorder_tasks(
+    state: tauri::State<'_, Mutex<Connection>>,
+    ordered_task_ids: Vec<i64>,
+) -> Result<(), String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::reorder_tasks(&mut conn, pet_id, &ordered_task_ids)
+        .map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------

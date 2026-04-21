@@ -73,21 +73,25 @@
   min-height: 0;
 }
 
-.todo-items {
+.todo-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  list-style: none;
-  padding: 4px 0;
 }
 
 /* Subtle scrollbar so it doesn't overpower the transparent window */
-.todo-items::-webkit-scrollbar {
+.todo-scroll::-webkit-scrollbar {
   width: 3px;
 }
-.todo-items::-webkit-scrollbar-thumb {
+.todo-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
+}
+
+.todo-items {
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
 }
 
 .todo-item {
@@ -95,16 +99,31 @@
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  transition: opacity 400ms ease;
+  transition: opacity 400ms ease, background 120ms ease;
+  user-select: none;
+  touch-action: none;
 }
 
-.todo-item--done {
-  opacity: 0.45;
+.todo-item--dragging {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  cursor: grabbing;
 }
 
-.todo-item--fading {
-  opacity: 0;
-  pointer-events: none;
+.todo-item--editing {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+}
+
+.todo-item--done-static {
+  opacity: 0.6;
+  cursor: default;
+  touch-action: auto;
+}
+
+.todo-item--done-static .todo-title {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .todo-empty {
@@ -113,6 +132,25 @@
   font-family: system-ui, sans-serif;
   font-size: 12px;
   font-style: italic;
+  margin: 0;
+}
+
+.todo-completed-section {
+  padding: 4px 0 8px;
+}
+
+.todo-completed-header {
+  padding: 8px 12px 2px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.30);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.todo-items--completed {
+  padding: 2px 0 0;
 }
 
 .todo-checkbox {
@@ -151,9 +189,25 @@
   white-space: nowrap;
 }
 
-.todo-item--done .todo-title {
-  text-decoration: line-through;
-  color: rgba(255, 255, 255, 0.40);
+.todo-title--editable {
+  cursor: text;
+}
+
+.todo-edit-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: rgba(255, 255, 255, 0.90);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+}
+
+.todo-edit-input:focus {
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .todo-delete {

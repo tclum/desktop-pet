@@ -2,7 +2,7 @@ use rusqlite::{params, Connection};
 use std::path::Path;
 use thiserror::Error;
 
-const SCHEMA_TARGET_VERSION: i64 = 4;
+const SCHEMA_TARGET_VERSION: i64 = 5;
 
 // DEMO: starter → hatchling at 5 growth resources. Production should be 20.
 // See "The Point / Resource Economy" in desktop-pet-design.md.
@@ -88,6 +88,9 @@ fn apply_migrations(conn: &Connection) -> Result<(), DbError> {
     }
     if current < 4 {
         migrate_3_to_4(conn)?;
+    }
+    if current < 5 {
+        migrate_4_to_5(conn)?;
     }
 
     Ok(())
@@ -207,6 +210,22 @@ fn migrate_3_to_4(conn: &Connection) -> Result<(), DbError> {
         ALTER TABLE growth_events_new RENAME TO growth_events;
 
         UPDATE schema_version SET version = 4;
+
+        COMMIT;",
+    )?;
+    Ok(())
+}
+
+fn migrate_4_to_5(conn: &Connection) -> Result<(), DbError> {
+    // Seeding display_order = id preserves the creation-order sort that
+    // load_tasks previously produced via ORDER BY created_at.
+    conn.execute_batch(
+        "BEGIN;
+
+        ALTER TABLE tasks ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;
+        UPDATE tasks SET display_order = id;
+
+        UPDATE schema_version SET version = 5;
 
         COMMIT;",
     )?;
@@ -389,6 +408,7 @@ pub struct TaskRow {
     pub title: String,
     pub created_at: String,
     pub completed_at: Option<String>,
+    pub display_order: i64,
 }
 
 pub struct CompleteTaskResult {
@@ -397,11 +417,19 @@ pub struct CompleteTaskResult {
 }
 
 pub fn load_tasks(conn: &Connection, pet_id: i64) -> Result<Vec<TaskRow>, DbError> {
+    // Returns active tasks plus anything completed today (local time). Tasks
+    // completed on previous days fall out of the list here so the frontend
+    // only sees what belongs in the "completed today" view.
     let mut stmt = conn.prepare(
-        "SELECT id, title, created_at, completed_at
+        "SELECT id, title, created_at, completed_at, display_order
          FROM tasks
-         WHERE pet_id = ?1 AND deleted_at IS NULL
-         ORDER BY created_at ASC",
+         WHERE pet_id = ?1
+           AND deleted_at IS NULL
+           AND (
+             completed_at IS NULL
+             OR completed_at >= date('now', 'localtime')
+           )
+         ORDER BY display_order ASC, id ASC",
     )?;
     let rows = stmt.query_map(params![pet_id], |row| {
         Ok(TaskRow {
@@ -409,19 +437,29 @@ pub fn load_tasks(conn: &Connection, pet_id: i64) -> Result<Vec<TaskRow>, DbErro
             title: row.get(1)?,
             created_at: row.get(2)?,
             completed_at: row.get(3)?,
+            display_order: row.get(4)?,
         })
     })?;
     rows.collect::<Result<Vec<_>, _>>().map_err(DbError::Sqlite)
 }
 
 pub fn insert_task(conn: &Connection, pet_id: i64, title: &str) -> Result<TaskRow, DbError> {
+    // New tasks sort to the bottom: one past the current max display_order.
+    // COALESCE handles the empty-list case. Scoped to this pet so reordering
+    // in another pet's list (should one ever exist) can't collide.
     conn.execute(
-        "INSERT INTO tasks (pet_id, title) VALUES (?1, ?2)",
+        "INSERT INTO tasks (pet_id, title, display_order)
+         VALUES (
+             ?1,
+             ?2,
+             COALESCE((SELECT MAX(display_order) FROM tasks WHERE pet_id = ?1), 0) + 1
+         )",
         params![pet_id, title],
     )?;
     let id = conn.last_insert_rowid();
     conn.query_row(
-        "SELECT id, title, created_at, completed_at FROM tasks WHERE id = ?1",
+        "SELECT id, title, created_at, completed_at, display_order
+         FROM tasks WHERE id = ?1",
         params![id],
         |row| {
             Ok(TaskRow {
@@ -429,10 +467,53 @@ pub fn insert_task(conn: &Connection, pet_id: i64, title: &str) -> Result<TaskRo
                 title: row.get(1)?,
                 created_at: row.get(2)?,
                 completed_at: row.get(3)?,
+                display_order: row.get(4)?,
             })
         },
     )
     .map_err(DbError::Sqlite)
+}
+
+pub fn update_task_title(
+    conn: &mut Connection,
+    task_id: i64,
+    pet_id: i64,
+    new_title: &str,
+) -> Result<(), DbError> {
+    let tx = conn.transaction()?;
+    let affected = tx.execute(
+        "UPDATE tasks SET title = ?1
+         WHERE id = ?2 AND pet_id = ?3 AND deleted_at IS NULL",
+        params![new_title, task_id, pet_id],
+    )?;
+    // Only log the signal if the row was actually updated — don't record an
+    // "edit" for a deleted or non-existent task.
+    if affected > 0 {
+        tx.execute(
+            "INSERT INTO behavioral_signals (pet_id, signal_type, value)
+             VALUES (?1, 'task_edited', NULL)",
+            params![pet_id],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn reorder_tasks(
+    conn: &mut Connection,
+    pet_id: i64,
+    ordered_task_ids: &[i64],
+) -> Result<(), DbError> {
+    let tx = conn.transaction()?;
+    for (index, task_id) in ordered_task_ids.iter().enumerate() {
+        tx.execute(
+            "UPDATE tasks SET display_order = ?1
+             WHERE id = ?2 AND pet_id = ?3 AND deleted_at IS NULL",
+            params![index as i64, task_id, pet_id],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 pub fn complete_task(

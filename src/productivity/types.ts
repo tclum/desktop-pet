@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   created_at: string;
   completed_at: string | null;
+  display_order: number;
 }
 
 export interface CompleteTaskResult {
