@@ -92,3 +92,84 @@ body,
   backdrop-filter: blur(12px);
   border-radius: 12px;
 }
+
+/* ---------------------------------------------------------------------------
+   Debug panel — hidden by default, toggled with Cmd/Ctrl+Shift+D.
+   Deliberately utilitarian: it's a founder tool, not part of the product.
+--------------------------------------------------------------------------- */
+
+.debug-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  min-width: 140px;
+  padding: 8px;
+  background: rgba(15, 15, 25, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.80);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.debug-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.50);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.debug-panel-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.50);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.debug-panel-close:hover {
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.debug-panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debug-panel-actions button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 4px 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.debug-panel-actions button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.debug-panel-status {
+  color: rgba(160, 220, 160, 0.80);
+  font-size: 9px;
+  padding: 2px 0;
+}
+
+.debug-panel-hint {
+  color: rgba(255, 255, 255, 0.30);
+  font-size: 9px;
+  text-align: right;
+}

@@ -7,6 +7,7 @@ import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
 import { PhysicalPosition } from '@tauri-apps/api/dpi';
 import PetView from './pet/PetView';
 import ProductivityPanel from './productivity/ProductivityPanel';
+import DebugPanel from './debug/DebugPanel';
 import type { PetState } from './pet/types';
 import {
   getPet,
@@ -95,6 +96,7 @@ export default function App() {
       <div className="panel-area">
         <ProductivityPanel onPointsEarned={handlePointsEarned} onEvolution={handleEvolution} />
       </div>
+      <DebugPanel onPetStateUpdate={handlePetStateUpdate} onEvolution={handleEvolution} />
     </div>
   );
 }

@@ -62,6 +62,8 @@ pub fn run() {
             evolve_to_hatchling,
             get_window_position,
             set_window_position,
+            debug_reset_pet,
+            debug_add_growth,
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop pet");
@@ -338,4 +340,41 @@ fn set_window_position(
 ) -> Result<(), String> {
     let mut conn = state.lock().map_err(|e| e.to_string())?;
     db::set_window_position(&mut conn, x, y).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Debug / demo commands
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct DebugAddGrowthDto {
+    pub evolved: bool,
+    pub pet: PetStateDto,
+}
+
+#[tauri::command]
+fn debug_reset_pet(
+    state: tauri::State<'_, Mutex<Connection>>,
+) -> Result<PetStateDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    db::debug_reset_pet(&mut conn, pet_id).map_err(|e| e.to_string())?;
+    db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn debug_add_growth(
+    state: tauri::State<'_, Mutex<Connection>>,
+    delta: i64,
+) -> Result<DebugAddGrowthDto, String> {
+    let mut conn = state.lock().map_err(|e| e.to_string())?;
+    let pet_id = db::get_current_pet_id(&conn).map_err(|e| e.to_string())?;
+    let result = db::debug_add_growth(&mut conn, pet_id, delta)
+        .map_err(|e| e.to_string())?;
+    let pet = db::load_pet(&conn)
+        .map(PetStateDto::from)
+        .map_err(|e| e.to_string())?;
+    Ok(DebugAddGrowthDto { evolved: result.evolved, pet })
 }

@@ -751,6 +751,59 @@ fn check_and_evolve(conn: &Connection, pet_id: i64) -> Result<bool, DbError> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Debug / demo helpers
+//
+// These commands are invoked by the hidden debug panel (Cmd/Ctrl+Shift+D) and
+// are kept server-side so the founder can demo any build, dev or release.
+// Users never discover these by normal use; they're behind a deliberate shortcut.
+// ---------------------------------------------------------------------------
+
+pub struct DebugAddGrowthResult {
+    pub evolved: bool,
+}
+
+/// Resets the pet to starter with zero growth resources and a fresh interaction
+/// timestamp. Preserves the pet row (and its id) so continuity of care history
+/// in behavioral_signals is maintained for post-demo inspection.
+pub fn debug_reset_pet(conn: &mut Connection, pet_id: i64) -> Result<(), DbError> {
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE pet SET
+             stage = 'starter',
+             personality = NULL,
+             growth_resources = 0,
+             last_interaction_at = datetime('now')
+         WHERE id = ?1",
+        params![pet_id],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Adds raw growth resources (bypassing the daily cap and anti-cheat rules)
+/// and runs the evolution check. Used to fast-forward a demo past the starter
+/// stage without tediously completing real tasks.
+///
+/// Deliberately does NOT write a `growth_events` row for the boost itself —
+/// growth_events is the ledger of real productivity events, and polluting it
+/// with debug injections would distort any future analysis. The evolution row
+/// (if one triggers) is still written by `check_and_evolve`, which is correct.
+pub fn debug_add_growth(
+    conn: &mut Connection,
+    pet_id: i64,
+    delta: i64,
+) -> Result<DebugAddGrowthResult, DbError> {
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE pet SET growth_resources = growth_resources + ?1 WHERE id = ?2",
+        params![delta, pet_id],
+    )?;
+    let evolved = check_and_evolve(&tx, pet_id)?;
+    tx.commit()?;
+    Ok(DebugAddGrowthResult { evolved })
+}
+
 /// Applies the "silent diminishing returns" rule: if the user has already
 /// earned 20+ points today (calendar day, local time), halve any new points
 /// (floor, minimum 0).

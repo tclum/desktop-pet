@@ -86,3 +86,20 @@ export function getWindowPosition(): Promise<WindowPosition | null> {
 export function setWindowPosition(x: number, y: number): Promise<void> {
   return invoke('set_window_position', { x, y });
 }
+
+// ---------------------------------------------------------------------------
+// Debug / demo commands — only invoked by the hidden DebugPanel
+// ---------------------------------------------------------------------------
+
+export interface DebugAddGrowthResult {
+  evolved: boolean;
+  pet: PetState;
+}
+
+export function debugResetPet(): Promise<PetState> {
+  return invoke('debug_reset_pet');
+}
+
+export function debugAddGrowth(delta: number): Promise<DebugAddGrowthResult> {
+  return invoke('debug_add_growth', { delta });
+}
