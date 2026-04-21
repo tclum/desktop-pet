@@ -8,6 +8,7 @@ import { PhysicalPosition } from '@tauri-apps/api/dpi';
 import PetView from './pet/PetView';
 import ProductivityPanel from './productivity/ProductivityPanel';
 import DebugPanel from './debug/DebugPanel';
+import OnboardingFlow from './onboarding/OnboardingFlow';
 import type { PetState } from './pet/types';
 import type { ReactionKind } from './pet/PetView';
 import type { GreetingTier } from './lib/tauri';
@@ -22,6 +23,7 @@ import {
 
 import './styles/pet.css';
 import './styles/productivity.css';
+import './styles/onboarding.css';
 
 export default function App() {
   const [petState, setPetState] = useState<PetState | null>(null);
@@ -120,6 +122,20 @@ export default function App() {
       <div className="pet-window pet-loading">
         <span className="pet-loading-dot" aria-hidden="true" />
         <span className="pet-loading-sr">loading your pet</span>
+      </div>
+    );
+  }
+
+  // First-launch flow: user hasn't picked an environment yet. The debug
+  // panel remains mounted so the founder can escape hatch out of onboarding
+  // mid-flow during demos. No drag handle here — the window is already
+  // drag-enabled via the tauri config; a visible handle would compete with
+  // the onboarding's vertical centering.
+  if (!petState.has_completed_onboarding) {
+    return (
+      <div className="pet-window pet-window--onboarding">
+        <OnboardingFlow onCompleted={handlePetStateUpdate} />
+        <DebugPanel onPetStateUpdate={handlePetStateUpdate} onEvolution={handleEvolution} />
       </div>
     );
   }
