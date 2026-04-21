@@ -7,8 +7,16 @@ const MAX_DURATION_MINUTES = 120;
 const STEP_MINUTES = 5;
 const DEFAULT_DURATION_MINUTES = 25;
 
-// Rotate through these on each completion — no repetition within a session.
-const COMPLETION_MESSAGES = ['Good session.', 'Nice focus.', 'Thanks for that.'];
+// Rotate through these on each completion — warm, understated, never grand.
+// Pool kept intentionally small but varied enough that repeats feel spaced out.
+const COMPLETION_MESSAGES = [
+  'Good session.',
+  'Nice focus.',
+  'Thanks for that.',
+  'That was nice.',
+  'Well spent.',
+  'Glad you were here.',
+];
 
 interface Props {
   onPointsEarned: (points: number) => void;

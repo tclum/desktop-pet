@@ -104,8 +104,11 @@ export default function App() {
   if (loadError) {
     return (
       <div className="pet-window pet-error">
-        <p>Something went wrong loading your pet.</p>
-        <p style={{ fontSize: '11px', opacity: 0.6, marginTop: 8 }}>{loadError}</p>
+        <p>Something got in the way of loading your pet.</p>
+        <p style={{ fontSize: '12px', opacity: 0.7, marginTop: 6 }}>
+          Your save is still safe. Try restarting the app.
+        </p>
+        <p style={{ fontSize: '11px', opacity: 0.45, marginTop: 12 }}>{loadError}</p>
       </div>
     );
   }
