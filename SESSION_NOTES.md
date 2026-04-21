@@ -1,179 +1,195 @@
-# Session Notes — April 21, 2026 (Session 2)
+# Session Notes — April 21, 2026 (Session 3)
 
-Autonomous session working through the priority list in the session prompt.
-All five priorities shipped and pushed across ten commits. Polish phase
-produced several small focused commits per the brief.
+Autonomous session building the onboarding scaffolding. Eight commits
+across the seven numbered work items plus the docs wrap-up. Everything
+pushed to `origin/main`. Pre-commit hook gated every commit — cargo check
+and tsc --noEmit both clean throughout.
 
 ## What shipped
 
-### 1. App-open counts as interaction (commit `bf121c6`)
+### 1. Onboarding backend (commit `05a49b8`)
 
-Backend `start_session` command — the single atomic mount call. Computes
-greeting tier against pre-bump `last_interaction_at`, then bumps the
-timestamp and logs a `session_open` behavioral signal. Returns
-`{ tier, pet }` together so there's no ordering race between tier
-calculation and timestamp bump.
+Schema v7→v8 adds:
+- `has_completed_onboarding INTEGER NOT NULL DEFAULT 0 CHECK (0, 1)`
+- `environment TEXT NULL CHECK (NULL or one of the five v1 values)`
 
-Does NOT add bond — per the brief, opening the computer counts for presence
-but bond growth stays reserved for explicit care (click, task complete,
-focus complete).
+Existing pet rows (created before migration) get
+`has_completed_onboarding = 1` so upgrades don't surprise an already-bonded
+user with the onboarding screen. Brand-new databases land on 0 naturally —
+the `ensure_starter_pet` insert runs after migrations with the column
+default.
 
-Replaces the two-call `getPet` + `checkGreeting` pattern in App.tsx.
-`check_greeting` command remains registered for any future isolated callers.
+New commands:
+- `complete_onboarding(environment)` — sets both fields + writes
+  `onboarding_completed` behavioral signal in one transaction. Validates
+  the env enum in Rust before SQL so errors are clean.
+- `debug_reset_onboarding()` — flips the flag back and clears env. Preserves
+  pet identity, growth, bond, personality, stage. Purely about re-showing
+  the intro screens.
 
-**Side effects:**
-- Resting visual clears on app open (`seconds_since_last_interaction` is
-  now zero after mount)
-- Greeting cycle resets; next absence tier is measured from the session-open
-  bump, not the last explicit interaction
+`PetStateDto`, frontend `PetState`, and `tauri.ts` wrappers extended.
 
-### 2. Pre-commit hook (commit `ed4699b`)
+### 2. StartScreen (commit `83359e3`)
 
-`scripts/hooks/pre-commit` runs `tsc --noEmit` + `cargo check` only when the
-staged diff includes TypeScript or Rust files. Docs-only commits skip both.
-`scripts/install-hooks.sh` symlinks the hook into `.git/hooks` so clean
-clones opt in with one command. `CONTRIBUTING.md` documents the setup and
-why the hook exists.
+First-launch welcome. Pre-pet visual is a CSS-only egg with a soft radial
+glow — "the creature is already there in some form" without committing to
+a look before environment selection. Idle pulse at 4.2s, deliberately
+slower than the main pet's 3s breath so the rhythms don't clash on hand-off.
 
-Specifically prevents the class of "builds but doesn't run" bug that slipped
-through last session (`PetView` `ReferenceError`).
+Copy:
+- Title: "Hello, you."
+- Subtitle: "Someone's about to meet you."
+- Primary: "Start" (autofocus)
+- Secondary: "Learn more"
 
-### 3. First evolution (hatchling → stage1) with personality lean (commit `4bde803`)
+New `src/styles/onboarding.css` hosts the shared screen / action / button
+treatment all three onboarding screens use. Screens enter with a 360ms
+ease-out fade + translateY 4→0 matching the focus-done polish pattern from
+session 2.
 
-The big one.
+### 3. LearnMore (commit `24999ca`)
 
-**Backend:**
-- Schema v6→v7 extends `growth_events.source` CHECK with `evolved_to_stage1`.
-- `HATCHLING_TO_STAGE1_THRESHOLD = 10` (demo value — production ~80 per
-  § The Point / Resource Economy).
-- `compute_personality_lean()` scores on demand from `behavioral_signals`:
-    - `powerful_score = sum(focus_completed value) / 15`
-    - `cuddly_score = 1.0·gentle_care + 0.5·session_open + 0.3·task_created + 0.3·task_edited`
-- Task completion itself is **not** scored — without an eccentric personality
-  in v1, assigning task completions to either axis would push everyone one
-  way. Ties resolve to cuddly (warm-default tone).
-- `check_and_evolve` handles both starter → hatchling and hatchling →
-  stage1; the stage1 path locks personality in inside the same transaction.
-- `debug_force_evolve_stage1(personality)` command for demos.
+Structural FAQ placeholder. Four sections with stable `data-section`
+identifiers and a `TODO(copy)` marker next to each:
+- What is this?
+- How does it work?
+- What it's not
+- Privacy
 
-**Frontend:**
-- `PetForm` type union combines `(stage, personality)` into a single
-  sprite-routing key. `spriteUrl` takes a form; `petFormKey` derives it.
-- Two SVG placeholder sprites (round/warm cuddly, angular/poised powerful).
-  SVG chosen over PNG because (a) no dev dep required to generate, (b)
-  hand-writable, (c) artist-friend replacements will drop in trivially at
-  the `spriteUrl` mapping.
-- New "stage1 reveal" transition variant: peak holds 1200ms (vs 500ms default);
-  glow stays at full opacity through the first 35% of fade-in so the new form
-  materialises *through* the light. Total transition 4.7s vs 3.3s default.
-- `EvolutionState` now uses `PetForm` (from/to) so the transition fires on
-  personality lock-in even though raw stage alone would miss the nuance.
-- Debug panel gains "force → stage1 cuddly" and "force → stage1 powerful"
-  buttons alongside the existing "force → hatchling".
+Placeholder copy errs warm and gestures at the non-negotiables so nothing
+off-brand slips into an early screenshot, but the real words are held for
+a dedicated copy pass. Back button autofocuses so keyboard users can
+immediately return with Enter/Space.
 
-### 4. Phase C full: bond warmth + vacation greeting (commit `404f762`)
+### 4. EnvironmentSelect (commit `c36a5c5`)
 
-**Bond warmth:** a faint always-on radial glow behind the pet whose opacity
-tracks accumulated bond on a log curve (cap 0.18, slope 0.05). At bond = 10
-barely visible; at bond = 100 a subtle hum; at bond = 1000 reaches the cap.
-Never displayed as a number or bar — the user feels the space around their
-pet getting cozier over months of use without being measured. Transition is
-1.6s so incremental bond changes read as warming, not notification pulses.
+Five cards in a scrollable column: Forest / Countryside / Mountain / Ocean
+/ City, each with a gradient hint matching the flavor table in
+§ Environments as Cosmetic Skins.
 
-**Vacation greeting:** splits the large tier at 72h. Returns under 3 days keep
-the existing large warm-wash; returns past 3 days get the new `vacation` tier
-with a deeper, longer wash (5.2s, peak 0.85) AND a one-shot scale bump (+8%)
-on the pet itself at the greeting's peak. The pet visibly perks up in
-recognition — a distinct signal that this is a return, not just another
-session.
+Keyboard accessibility follows the WAI-ARIA radiogroup pattern:
+- `role="radiogroup"` wraps the cards; each card is `role="radio"`
+- Roving tabindex — only the selected card (or first card if nothing
+  selected yet) is in the Tab order
+- Arrow keys (both axes), Home, End all move focus AND selection together
+  the way an OS radio group would
+- Continue button is disabled until a selection exists; shows
+  "Settling in…" during submit
 
-### 5. Polish pass (5 commits)
+On Continue, `complete_onboarding` is called. The returned pet goes up to
+the `onCompleted` callback. Errors surface as a gentle warm panel — never
+alarming — with a "try again in a moment" message.
 
-Small focused changes:
+### 5. OnboardingFlow wrapper (commit `cef1303`)
 
-- **`6e65e6f` — Loading state.** Replaces the empty `<div />` placeholder
-  with a slowly-pulsing warm dot + SR-only "loading your pet" label. Barely
-  perceptible; removes the blank flash on slow launches.
-- **`b5cfcfc` — Warm focus ring.** Replaces the browser-blue default with a
-  `:focus-visible`-gated cream ring. Inputs carry focus via border-color +
-  matching box-shadow glow.
-- **`111781e` — Keyboard-accessible inline edit.** Todo title span gets
-  `role="button"`, `tabIndex={0}`, and Enter/Space handler. `stopPropagation`
-  prevents dnd-kit's keyboard sensor from eating Space as drag-start.
-- **`84e00d1` — Focus-done keyboard + fade-in.** "Session complete" view
-  now fades in with a small upward-drift, accepts Enter/Space/Escape to
-  dismiss, has `tabIndex={0}`, and reads the completion message via
-  `aria-label`.
-- **`12d4d24` — Debug panel closes on Escape.** Gated on visibility so
-  Escape doesn't disrupt text inputs when the panel is hidden.
+Three-step state machine: `start → environment → (complete)`, with
+`learn-more` as a side branch reachable from `start`. Each step change
+unmounts the previous screen, so the 360ms fade-in runs fresh on every
+step — that's the cross-fade between steps.
+
+A `TODO(design)` marker at the bottom of the file calls out the
+"meeting your pet" ceremonial beat that should bridge environment
+selection and the main app. Held for explicit design decisions.
+
+### 6. App.tsx wiring (commit `1807262`)
+
+Three render states:
+1. `petState === null` → existing pulsing-dot loading placeholder
+2. `has_completed_onboarding === false` → `OnboardingFlow`
+3. `has_completed_onboarding === true` → existing main app
+
+No flash between states — loading placeholder persists until
+`startSession` resolves and the flag is known.
+
+`OnboardingFlow.onCompleted` is wired to `handlePetStateUpdate`, so the
+pet returned by `complete_onboarding` flips the UI over with one
+`setPetState`. No extra orchestration needed.
+
+`DebugPanel` stays mounted during onboarding so the founder can hit
+Cmd/Ctrl+Shift+D mid-flow during demos. The drag handle is hidden
+during onboarding (window still drag-enabled via Tauri config).
+
+New `.pet-window--onboarding` class gives the onboarding container the
+same frosted-glass treatment as the productivity panel — consistent
+visual language.
+
+### 7. Debug panel reset-onboarding (commit `303de3d`)
+
+New "reset onboarding" button. Flips the flag back, clears environment,
+preserves everything else. Lets the founder iterate on onboarding
+content without deleting `pet.db`.
+
+### 8. Docs wrap-up (this commit)
+
+CLAUDE.md updated: schema v8, file organization shows `src/onboarding/`,
+Build Phase Tracker marks Phase G as partial with explicit notes on what
+the onboarding scaffolding covers and what remains.
 
 ## Notes for Taylor
 
-### Design decisions I made without asking
+### Design decisions made without asking
 
-- **Task completion is deliberately unscored for personality lean.** Without
-  eccentric in v1, scoring tasks toward any axis pushes most users there.
-  Ties resolve to cuddly. If playtesting shows almost everyone ending up
-  cuddly, revisit: maybe short-burst-of-focus → powerful, single-task-days
-  → cuddly. For now, the simpler scoring is honest about what v1 can measure.
-- **`HATCHLING_TO_STAGE1_THRESHOLD = 10`** for demo. Production should be ~80.
-  With the current `+5 growth` debug button, a demo can reach stage1 in
-  2 clicks after forcing hatchling.
-- **Bond-warmth curve: cap 0.18, slope 0.05, `log10(bond + 1)`.** Tuned by
-  feel. Tunable in `PetView.tsx`. The log curve ensures early bonds feel
-  unrewarded (as they should — showing up for a day shouldn't glow loud)
-  while sustained bond has visible effect.
-- **Vacation threshold stays at 3 days.** Matches the existing
-  `VACATION_THRESHOLD_SECONDS` constant which already drove the behavioral
-  signal. Now it drives both the greeting tier split and the signal.
-- **Greeting tier visual (vacation):** scale-bump of +8% on the pet during
-  the glow peak, 5.2s total (vs 4.5s for large). Felt like the right amount
-  of "perk up" without being a cartoon bounce.
+- **Existing pets marked onboarded on migration.** A user who already has
+  a bonded pet shouldn't suddenly see the onboarding screen after a
+  schema upgrade. Migration sets `has_completed_onboarding = 1` for any
+  pet row predating the migration; new databases start at 0. `environment`
+  stays NULL for legacy pets — downstream code tolerates NULL (cosmetic
+  env flavor is strictly additive, not load-bearing).
 
-### Things to watch / open questions
+- **Onboarding copy is warm but minimal.** Two lines on the start screen,
+  four short sections in learn-more, one line per env card. I erred on
+  "less is more" since the brief called out specific TODO markers for
+  real copy and I didn't want my placeholders to ossify as final text.
 
-- **First-run race:** `start_session` calls `check_greeting` first, which
-  may write `settings.last_greeted_at`. Then `mark_session_open` bumps
-  `last_interaction_at`. Both are under the same Mutex lock. No issues
-  observed, but something to watch if concurrent reads ever enter the
-  picture.
+- **Error state on env selection is inline, not a modal.** A warm-tinted
+  error panel between the grid and the Continue button. User can try
+  again without losing their selection. Not alarming, not blocking.
 
-- **SVG vs PNG decision:** I used SVG for the two new stage1 sprites because
-  adding a PNG-encoding dep for placeholder art seemed wasteful. The real
-  artist art will almost certainly arrive as PNG; swap point is the single
-  `spriteUrl` function. If the artist friends' pipeline is SVG-native
-  (unlikely but possible), even less work.
+- **"reset onboarding" preserves pet state.** Brief explicitly said my
+  call; I preserve. Rationale in the commit message: the founder will
+  test onboarding many times against the same pet fixture, wiping
+  every time would be friction. If you want a "hard reset" button too
+  (wipe + reset onboarding), trivial to add — just chain
+  `debug_reset_pet` + `debug_reset_onboarding`.
 
-- **Debug panel and stage1:** "force → stage1 cuddly" works from any stage
-  (starter, hatchling). It leaps two stages if invoked on starter, which is
-  fine for demos but worth noting — a real user can't do this.
+- **Environment cosmetics not yet wired.** The brief said "architecture
+  should support it but don't build visuals." The env value is
+  persisted and reaches `PetState` everywhere it's needed; the visual
+  plug-in points are `PetView` (sprite tinting) and the pet area
+  (ambient background). A `TODO(design)` marker in the env CSS
+  section flags this for the next onboarding design pass.
 
-- **Pre-commit hook DID block a bad commit.** When testing P3 I briefly
-  had an unresolved PetStage import issue before I'd added the new imports;
-  the hook would have blocked it. tsc ran clean by the time I committed.
-  Hook is doing its job.
+### TODO markers left in the codebase (all intentional)
+
+- `TODO(copy)` — four markers in `LearnMore.tsx`, one per section.
+- `TODO(design)` — two markers:
+  - Bottom of `OnboardingFlow.tsx` — the "meeting your pet" beat
+    between env selection and the main app.
+  - Top of the env-grid CSS block — sprite tinting / ambient
+    environmental background held for design.
+
+Grep for `TODO(copy)` and `TODO(design)` to find them all.
 
 ### What I did not touch
 
-- Focus timer internal logic (unchanged, just added fade-in + keyboard)
-- Pet rendering core RAF loop (added bond-warmth + vacation scale bump,
-  kept existing breathing / evolution / reaction / greeting structure)
-- Productivity panel layout
-- Window dragging
-- CLAUDE.md copy beyond the Build Phase Tracker + schema version line (felt
-  load-bearing for future sessions' accuracy)
-
-### Nothing skipped
-
-All five priorities on the list shipped. The polish pass did five small
-commits; could have done more but the items I found felt like they'd be
-chasing tail. Happy to go deeper if you point me at specific things next
-session.
+- Existing evolution flow (`check_and_evolve`, stage1 reveal transition)
+- Pet rendering core (`PetView`)
+- Productivity panel, TodoList, FocusTimer
+- Window dragging (still enabled via Tauri config; handle hidden
+  during onboarding only)
+- Existing debug-panel buttons
 
 ### Build status at end of session
 
 - `cargo check`: clean
 - `npx tsc --noEmit`: clean
-- Pre-commit hook verified working (blocked my own attempts mid-development)
+- Pre-commit hook ran on every commit and passed
+- All eight commits pushed to `origin/main`
 
-All ten commits pushed to `origin/main`.
+### Nothing skipped
+
+All seven numbered work items shipped. Polish / test-coverage of the
+onboarding flow against edge cases (e.g. what if user quits mid-flow
+and relaunches? — they land back on the start screen since the flag is
+still 0, which is probably right) wasn't called for and I didn't
+add it. Happy to write tests for the flow in a follow-up if useful.

@@ -37,7 +37,7 @@ The product exists in memory of a cat named Meowzers (see design doc). Every des
 
 ### Schema version
 
-Current: **v7**. Migrations v1→v2→v3→v4→v5→v6→v7 are all in place in `src-tauri/src/db/mod.rs`. Schema includes: `pet` (with `growth_resources`, `bond`, `personality`), `schema_version`, `settings`, `tasks` (with `display_order`), `focus_sessions`, `growth_events` (source includes `evolved_to_stage1`), `behavioral_signals`.
+Current: **v8**. Migrations v1→v2→v3→v4→v5→v6→v7→v8 are all in place in `src-tauri/src/db/mod.rs`. Schema includes: `pet` (with `growth_resources`, `bond`, `personality`, `has_completed_onboarding`, `environment`), `schema_version`, `settings`, `tasks` (with `display_order`), `focus_sessions`, `growth_events` (source includes `evolved_to_stage1`), `behavioral_signals`.
 
 ### Known pending items (not urgent, not blocking)
 
@@ -129,6 +129,11 @@ src/                             # Frontend (React + TypeScript)
     TodoList.tsx                 # Task list with inline edit + drag reorder + completed-today
     FocusTimer.tsx               # Focus timer with pause/resume/stop
     types.ts                     # Task / focus session DTOs
+  onboarding/
+    OnboardingFlow.tsx           # Three-step state machine (start → learn-more branch, start → environment)
+    StartScreen.tsx              # First-launch welcome with pre-pet egg + Start / Learn more
+    LearnMore.tsx                # Structural FAQ placeholder — TODO(copy) markers
+    EnvironmentSelect.tsx        # Five-card chooser with roving-tabindex keyboard nav
   lib/
     tauri.ts                     # Typed wrappers around Tauri invoke calls
   styles/
@@ -195,7 +200,7 @@ Do not improvise these. If a decision touches one, surface the question rather t
 - [x] **Phase D:** Productivity exists (todo list, focus timer, growth resources, calendar-day diminishing returns)
 - [x] **Phase E:** Two evolutions shipped — starter→hatchling (ceremonial transition), hatchling→stage1 with personality lock-in (extended "reveal" transition, two placeholder sprites for cuddly/powerful). Personality lean computed on demand from behavioral_signals. Remaining: stage2 evolution.
 - [ ] **Phase F:** Stages 1 and 2 polished (both personalities, both stages) — needs "wants" system designed first
-- [ ] **Phase G:** Polish, onboarding, demo flow — needs onboarding designed first
+- [ ] **Phase G (partial):** Onboarding scaffolding shipped — schema v7→v8 adds has_completed_onboarding + environment; three onboarding screens (Start / LearnMore / EnvironmentSelect) with the five v1 environments; OnboardingFlow wrapper; App.tsx routes between onboarding and main app. TODO(design) stubs hold the "meeting your pet" beat, real learn-more copy, environment cosmetic effects (sprite tinting / ambient backgrounds), and the naming moment at first evolution.
 - [ ] **Phase H:** Pre-launch (beta, code signing, distribution) — verify notification permissions with signed build
 
 Note: Phases are no longer strictly sequential. Phase E jumped ahead for demo value; Phase C is being filled in incrementally.
