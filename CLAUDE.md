@@ -221,3 +221,22 @@ In order of what would most improve the current product. Not prescriptive — us
 ---
 
 *For full product context, design philosophy, and the story behind what this is, see `desktop-pet-design.md`. This file is the operational index; that one is the soul.*
+
+---
+
+## Cross-Project Operating Rules
+
+These apply to every project under `~/Desktop/Developer`. Canonical source:
+`~/Desktop/Developer/CLAUDE.md`. (Investigation-before-implementation is already
+covered above under *Open Design Questions* and *Reminders for Claude Code* —
+surface the question rather than guessing.)
+
+- **Full test suite is the commit gate.** The full suite must be green before
+  every commit — not optional. Targeted checks (typecheck, focused tests, the
+  cross-platform CI run) are *in addition to*, never *instead of*, the full suite.
+- **Explicit file lists for git commits.** Stage named files; `git add -A` is the
+  exception, not the default — it sweeps untracked or in-flight work into the
+  wrong commit.
+- **Platform fixes ship separately from feature work.** Bug and platform fixes go
+  in their own commits. Bundling is allowed only under genuine production
+  pressure, and must be named explicitly in the commit message.
