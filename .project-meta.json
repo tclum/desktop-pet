@@ -1,0 +1,9 @@
+{
+  "name": "desktop-pet",
+  "description": "Desktop task manager with a companion pet that grows as you complete work.",
+  "category": "local",
+  "url": null,
+  "start": "npm run dev",
+  "stack": "Tauri 2 (Rust), React 18, TypeScript, Vite, SQLite",
+  "pitch": "Desktop task app with a companion pet that grows as you complete work"
+}
